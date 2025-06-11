@@ -14,34 +14,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Main Function ---
     async function initialize() {
+        // The loading spinner is visible by default in the HTML.
         try {
             const response = await fetch('./data.json');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             allMods = data;
-            applyFilters();
+            // This is the first time we apply filters, which will then call render().
+            applyFilters(); 
         } catch (error) {
+            // If loading fails, remove the spinner and show an error.
             modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">Error loading mods. The data file might be missing or invalid. Please run the scraper action on GitHub.</p>`;
         }
     }
 
-    // --- Filtering and Rendering ---
+    // --- Corrected Filter Logic ---
     function applyFilters() {
         const searchTerm = searchInput.value.toLowerCase();
         const selectedGame = gameSelect.value;
         const selectedVersion = versionSelect.value;
 
         filteredMods = allMods.filter(mod => {
-            const matchesSearch = mod.title.toLowerCase().includes(searchTerm) || mod.description.toLowerCase().includes(searchTerm);
-            const matchesGame = selectedGame === 'ALL' || mod.game === selectedGame;
+            const gameMatch = selectedGame === 'ALL' || mod.game === selectedGame;
             
-            let matchesVersion = selectedVersion === 'ALL';
-            if (selectedVersion !== 'ALL') {
-                const versionKey = selectedVersion.toLowerCase();
-                matchesVersion = mod.version[versionKey];
-            }
-            
-            return matchesSearch && matchesGame && matchesVersion;
+            const versionKey = selectedVersion.toLowerCase();
+            const versionMatch = selectedVersion === 'ALL' || (mod.version && mod.version[versionKey] === true);
+
+            const searchMatch = mod.title.toLowerCase().includes(searchTerm) || mod.description.toLowerCase().includes(searchTerm);
+
+            return gameMatch && versionMatch && searchMatch;
         });
 
         currentPage = 1;
@@ -54,7 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderModList() {
-        modListContainer.innerHTML = '';
+        // This is where the functional loading animation works.
+        // By clearing the container, we remove the spinner.
+        modListContainer.innerHTML = ''; 
+        
         if (filteredMods.length === 0) {
             modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">No mods match your filters.</p>`;
             return;
@@ -129,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             pagesToShow.push(1);
             if (currentPage > 3) pagesToShow.push('...');
-            for (let i = Math.max(2, currentPage - 2); i <= Math.min(totalPages - 1, currentPage + 2); i++) {
+            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
                 pagesToShow.push(i);
             }
             if (currentPage < totalPages - 2) pagesToShow.push('...');
@@ -160,7 +164,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Event Listeners ---
-    [searchInput, gameSelect, versionSelect].forEach(el => el.addEventListener('input', applyFilters));
+    [searchInput, gameSelect, versionSelect].forEach(el => {
+        const eventType = el.tagName === 'INPUT' ? 'input' : 'change';
+        el.addEventListener(eventType, applyFilters);
+    });
 
     // --- Start the application ---
     initialize();
