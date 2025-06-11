@@ -1,34 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Elements ---
     const modListContainer = document.getElementById('mod-list-container');
     const paginationContainer = document.getElementById('pagination-container');
     const searchInput = document.getElementById('search-input');
     const gameSelect = document.getElementById('game-select');
     const versionSelect = document.getElementById('version-select');
+    const popupOverlay = document.getElementById('popup-overlay');
+    const popupContent = document.getElementById('popup-content');
 
-    // --- State ---
     let allMods = [];
     let filteredMods = [];
     let currentPage = 1;
     const modsPerPage = 9;
 
-    // --- Main Function ---
     async function initialize() {
-        // The loading spinner is visible by default in the HTML.
         try {
             const response = await fetch('./data.json');
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             allMods = data;
-            // This is the first time we apply filters, which will then call render().
-            applyFilters(); 
+            applyFilters();
         } catch (error) {
-            // If loading fails, remove the spinner and show an error.
-            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">Error loading mods. The data file might be missing or invalid. Please run the scraper action on GitHub.</p>`;
+            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">Error loading mods. The data file might be missing or invalid.</p>`;
         }
     }
 
-    // --- Corrected Filter Logic ---
     function applyFilters() {
         const searchTerm = searchInput.value.toLowerCase();
         const selectedGame = gameSelect.value;
@@ -37,11 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredMods = allMods.filter(mod => {
             const gameMatch = selectedGame === 'ALL' || mod.game === selectedGame;
             
-            const versionKey = selectedVersion.toLowerCase();
-            const versionMatch = selectedVersion === 'ALL' || (mod.version && mod.version[versionKey] === true);
-
+            let versionMatch = selectedVersion === 'ALL';
+            if (selectedVersion !== 'ALL') {
+                const versionKey = selectedVersion.toLowerCase();
+                versionMatch = mod.version && mod.version[versionKey] === true;
+            }
+            
             const searchMatch = mod.title.toLowerCase().includes(searchTerm) || mod.description.toLowerCase().includes(searchTerm);
-
             return gameMatch && versionMatch && searchMatch;
         });
 
@@ -55,10 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderModList() {
-        // This is where the functional loading animation works.
-        // By clearing the container, we remove the spinner.
-        modListContainer.innerHTML = ''; 
-        
+        modListContainer.innerHTML = '';
         if (filteredMods.length === 0) {
             modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">No mods match your filters.</p>`;
             return;
@@ -67,49 +61,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const paginatedMods = filteredMods.slice((currentPage - 1) * modsPerPage, currentPage * modsPerPage);
 
         paginatedMods.forEach(mod => {
-            const uploadDate = new Date(mod.uploadDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-            const thumbnailUrl = mod.thumbnailUrl || 'https://files.facepunch.com/lewis/1b1311b1/gmod-header.jpg';
+            const globalIndex = allMods.findIndex(m => m.modPageUrl === mod.modPageUrl);
+            const postElement = document.createElement('div');
+            postElement.className = 'blog-post';
+            postElement.setAttribute('data-index', globalIndex);
             
-            const downloadLinksHtml = mod.downloadLinks.map(link => 
-                `<li><span>•</span><div class="entry"><a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.displayText}</a></div></li>`
-            ).join('');
+            const uploadDate = new Date(mod.uploadDate).toLocaleDateString();
+            const thumbnailUrl = mod.thumbnailUrl || 'https://files.facepunch.com/lewis/1b1311b1/gmod-header.jpg';
 
-            const modElement = document.createElement('div');
-            modElement.className = 'changes-container';
-            modElement.innerHTML = `
-                <div class="changes-sidebar">
-                    <div class="sidebar-section">
-                        <span class="subtitle">Mod Title</span>
-                        <a href="${mod.modPageUrl}" target="_blank" class="title">${mod.title}</a>
+            postElement.innerHTML = `
+                <a class="blog-post-image">
+                    <img src="${thumbnailUrl}" alt="${mod.title}" loading="lazy">
+                </a>
+                <div class="blog-post-body">
+                    <div class="date">
+                        <span class="icon"><i>schedule</i></span>
+                        <span>${uploadDate}</span>
                     </div>
-                    <div class="sidebar-section">
-                        <a class="date">
-                            <span class="icon"><i>date_range</i></span>
-                            ${uploadDate}
-                        </a>
-                    </div>
-                    <div class="sidebar-section">
-                        <span class="subtitle">Game</span>
-                        <a class="title">${mod.game}</a>
-                    </div>
-                </div>
-                <div class="changes-body">
-                    <div style="margin-bottom: 2rem;">
-                        <img src="${thumbnailUrl}" alt="${mod.title}" style="width: 100%; border-radius: 10px; box-shadow: 0 5px 10px rgba(0,130,255,.2);">
-                    </div>
-                    <p style="color: #363636; line-height: 1.6;">${mod.description}</p>
-                    <div class="changes-row features">
-                        <div class="changes-row-header">
-                            <span class="icon"><i>add_circle</i></span>
-                            <h3>Downloads</h3>
-                        </div>
-                        <div class="changes-row-body">
-                            <ul>${downloadLinksHtml || '<li>No download links found.</li>'}</ul>
-                        </div>
-                    </div>
+                    <a><h1 class="title is-size-4">${mod.title}</h1></a>
+                    <p class="subtitle is-size-6">${mod.description}</p>
                 </div>
             `;
-            modListContainer.appendChild(modElement);
+            modListContainer.appendChild(postElement);
         });
     }
 
@@ -163,12 +136,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Event Listeners ---
+    function showPopup(mod) {
+        const downloadLinksHtml = mod.downloadLinks.map(link => 
+            `<a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.displayText}</a>`
+        ).join('');
+
+        popupContent.innerHTML = `
+            <h1>${mod.title}</h1>
+            <p>${mod.description}</p>
+            <div class="download-section">
+                <h3>Downloads</h3>
+                ${downloadLinksHtml || '<p>No direct download links found.</p>'}
+            </div>
+        `;
+        popupOverlay.style.display = 'flex';
+    }
+
     [searchInput, gameSelect, versionSelect].forEach(el => {
         const eventType = el.tagName === 'INPUT' ? 'input' : 'change';
         el.addEventListener(eventType, applyFilters);
     });
+    modListContainer.addEventListener('click', e => {
+        const modCard = e.target.closest('.blog-post');
+        if (modCard) showPopup(allMods[modCard.dataset.index]);
+    });
+    popupOverlay.addEventListener('click', e => {
+        if (e.target === popupOverlay) popupOverlay.style.display = 'none';
+    });
 
-    // --- Start the application ---
     initialize();
 });
