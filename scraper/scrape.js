@@ -4,14 +4,13 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const BASE_URL = 'https://www.mixmods.com.br';
-// Corrected path to save to the root directory
 const OUTPUT_PATH = path.join('..', 'data.json');
 
 async function main() {
     console.log('--- Starting MixMods Scraper ---');
     const allMods = [];
     let page = 1;
-    const maxPages = 50; // Safety limit
+    const maxPages = 50;
 
     while (page <= maxPages) {
         const listUrl = `${BASE_URL}/page/${page}`;
@@ -43,21 +42,25 @@ async function main() {
                     const hasDownloadButton1 = $mod('.download_bt1').length > 0;
                     const hasDownloadButton2 = $mod('a img[src*="download-baixar-4532137.png"]').length > 0;
 
-                    if (!hasDownloadButton1 && !hasDownloadButton2) {
-                        continue;
-                    }
+                    if (!hasDownloadButton1 && !hasDownloadButton2) continue;
                     
                     const uploadDate = article.find('time.entry-date').attr('datetime');
                     const thumbnailUrl = article.find('div.post-image a img').attr('src');
                     const description = $mod('div.entry-content p').first().text().trim();
                     const downloadLinks = [];
 
-                    $mod('.download_bt1 a, a:has(img[src*="download-baixar-4532137.png"])').each((i, linkEl) => {
+                    // --- THIS IS THE CORRECTED, MORE ROBUST SELECTOR ---
+                    const selector = 'a.download_bt1, .download_bt1 a, a:has(img[src*="download-baixar-4532137.png"])';
+
+                    $mod(selector).each((i, linkEl) => {
                         const link = $mod(linkEl);
-                        downloadLinks.push({
-                            displayText: link.text().trim() || 'Download',
-                            url: link.attr('href')
-                        });
+                        const url = link.attr('href');
+                        if (url) { // Only add if a URL exists
+                            downloadLinks.push({
+                                displayText: link.text().trim() || 'Download',
+                                url: url
+                            });
+                        }
                     });
                     
                     console.log(`  -> SUCCESS: Found mod "${title}"`);
@@ -71,7 +74,7 @@ async function main() {
                     });
 
                 } catch (modPageError) {
-                    // This is not a critical error, just skip the mod
+                    // Skip this mod if its individual page fails to load
                 }
             }
             page++;
@@ -86,7 +89,7 @@ async function main() {
     }
 
     if (allMods.length === 0) {
-        console.error("[FATAL] No mods were found. Something is wrong. Not overwriting data.json.");
+        console.error("[FATAL] No mods were found. Not overwriting data.json.");
         return;
     }
 
