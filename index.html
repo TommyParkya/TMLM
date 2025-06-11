@@ -1,76 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
     <title>MixMods Browser</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="https://www.mixmods.com.br/wp-content/uploads/2022/10/mxmlogo200.png" type="image/x-icon">
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <header class="header">
-        <!-- This header is styled like the GMod site but is kept simple. -->
-        <div class="container">
-            <!-- You can add a logo or brand name here if you wish -->
-        </div>
-    </header>
 
-    <div class="section blog-list bg-light">
-        <div class="container">
-            <!-- Filter Bar -->
-            <div class="filter-bar">
-                <div class="tabs">
-                    <select id="game-select" class="button is-medium is-primary">
-                        <option value="all">All Games</option>
-                        <option value="GTA SA">GTA: San Andreas</option>
-                        <option value="GTA VC">GTA: Vice City</option>
-                        <option value="GTA III">GTA: III</option>
-                    </select>
-                    <select id="version-select" class="button is-medium is-primary">
-                        <option value="all">All Versions</option>
-                        <option value="PC">PC</option>
-                        <option value="Mobile">Mobile</option>
-                        <option value="DE">Definitive Edition</option>
-                        <option value="PS2">PS2</option>
-                    </select>
+<header class="header">
+    <div class="container">
+        <a href="/" class="header-brand">
+            <img src="https://files.facepunch.com/lewis/1b1311b1/gmod-logo.svg" alt="Garry's Mod Style Logo"/>
+        </a>
+        <div class="header-navigation">
+            <!-- The "Visit MixMods" button, replacing the original "Buy" button -->
+            <a href="https://www.mixmods.com.br/" class="button is-secondary mixmods-button" target="_blank">
+                <div class="logo-container">
+                    <img src="https://www.mixmods.com.br/wp-content/uploads/2022/10/mxmlogo200.png" alt="MixMods Logo"/>
                 </div>
-                <div class="search-box">
-                    <input type="text" id="search-bar" placeholder="Filter by name..."/>
-                </div>
-            </div>
-
-            <!-- Loading Animation -->
-            <div id="loader" class="loader-container">
-                <div class="loader"></div>
-            </div>
-
-            <!-- Mod List Container -->
-            <div class="blog-posts-container" id="mod-list">
-                <!-- Mod cards will be dynamically inserted here by JavaScript -->
-            </div>
-
-            <!-- Pagination Container -->
-            <div class="pagination-container">
-                <nav class="pagination" id="pagination" role="navigation" aria-label="pagination">
-                    <!-- Pagination buttons will be dynamically inserted here by JavaScript -->
-                </nav>
-            </div>
+                <span>Visit MixMods</span>
+            </a>
         </div>
     </div>
+</header>
 
-    <!-- Popup / Modal Structure -->
-    <div id="popup-overlay" class="popup-overlay" style="display: none;">
-        <div id="popup-box" class="popup-box">
-            <button id="popup-close" class="popup-close">×</button>
-            <img id="popup-thumbnail" src="" alt="Mod Thumbnail" class="popup-thumbnail">
-            <h1 id="popup-title"></h1>
-            <p id="popup-description"></p>
-            <div id="popup-downloads" class="popup-downloads">
-                <!-- Download links will be dynamically inserted here by JavaScript -->
-            </div>
+<div class="blog-list-header">
+    <div class="blog-hero-image" id="hero-image"></div>
+    <div class="blog-list-header-body">
+        <div class="container">
+            <a href="#" class="blog-header-title">
+                <h1>MixMods Browser</h1>
+            </a>
+            <p>A lightweight, fast browser for MixMods, inspired by the GMod website.</p>
         </div>
     </div>
+</div>
 
-    <!-- Link to the main JavaScript file -->
-    <script src="script.js"></script>
+<div class="section blog-list bg-light">
+    <div class="container">
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="tabs">
+                <select id="game-select" class="button is-medium is-outline">
+                    <option value="all">All Games</option>
+                    <option value="GTA SA">GTA San Andreas</option>
+                    <option value="GTA VC">GTA Vice City</option>
+                    <option value="GTA III">GTA III</option>
+                </select>
+                <select id="version-select" class="button is-medium is-outline">
+                    <option value="all">All Versions</option>
+                    <option value="PC">PC</option>
+                    <option value="Mobile">Mobile</option>
+                    <option value="DE">Definitive Edition</option>
+                    <option value="PS2">PS2</option>
+                </select>
+            </div>
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Filter by name"/>
+            </div>
+        </div>
+
+        <!-- Loading Animation -->
+        <div id="loading-spinner" class="loading-spinner"></div>
+
+        <!-- Mod List Container -->
+        <div class="blog-posts-container" id="mod-list-container">
+            <!-- Mods will be injected here by JavaScript -->
+        </div>
+
+        <!-- Pagination Container -->
+        <div class="pagination-container" id="pagination-container">
+            <!-- Pagination will be injected here by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Popup/Modal Structure -->
+<div id="popup-overlay" class="popup-overlay" style="display:none;">
+    <div id="popup-content" class="popup-content">
+        <button id="popup-close" class="popup-close">×</button>
+        <img id="popup-thumbnail" src="" alt="Mod Thumbnail"/>
+        <h1 id="popup-title"></h1>
+        <p id="popup-description"></p>
+        <div id="popup-downloads"></div>
+    </div>
+</div>
+
+<footer class="section">
+    <!-- Footer content from GMod site can be kept for aesthetic -->
+</footer>
+
+<script src="script.js"></script>
 </body>
 </html>
