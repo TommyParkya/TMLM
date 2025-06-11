@@ -36,13 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredMods = allMods.filter(mod => {
             const matchesSearch = mod.title.toLowerCase().includes(searchTerm) || mod.description.toLowerCase().includes(searchTerm);
             const matchesGame = selectedGame === 'ALL' || mod.game === selectedGame;
-            
-            let matchesVersion = selectedVersion === 'ALL';
-            if (!matchesVersion) {
-                const versionKey = selectedVersion.toLowerCase();
-                matchesVersion = mod.version[versionKey] === true;
-            }
-            
+            const matchesVersion = selectedVersion === 'ALL' || mod.version[selectedVersion.toLowerCase()];
             return matchesSearch && matchesGame && matchesVersion;
         });
 
@@ -71,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
             postElement.setAttribute('data-index', globalIndex);
             
             const uploadDate = new Date(mod.uploadDate).toLocaleDateString();
+            // Thumbnail Fix: Use a fallback if the URL is invalid
             const thumbnailUrl = mod.thumbnailUrl || 'https://files.facepunch.com/lewis/1b1311b1/gmod-header.jpg';
 
             postElement.innerHTML = `
@@ -98,18 +93,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const nav = document.createElement('nav');
         nav.className = 'pagination';
         nav.setAttribute('role', 'navigation');
+        nav.setAttribute('aria-label', 'pagination');
 
         const prevButton = `<a class="pagination-previous" ${currentPage === 1 ? 'disabled' : ''}><i>arrow_left</i></a>`;
         const nextButton = `<a class="pagination-next" ${currentPage === totalPages ? 'disabled' : ''}><i>arrow_right</i></a>`;
         
         let pageLinks = '';
+        // Ellipsis Pagination Logic
         const pagesToShow = [];
         if (totalPages <= 7) {
             for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
         } else {
             pagesToShow.push(1);
             if (currentPage > 3) pagesToShow.push('...');
-            for (let i = Math.max(2, currentPage - 2); i <= Math.min(totalPages - 1, currentPage + 2); i++) {
+            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
                 pagesToShow.push(i);
             }
             if (currentPage < totalPages - 2) pagesToShow.push('...');
@@ -127,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         nav.innerHTML = `${prevButton}${nextButton}<ul class="pagination-list">${pageLinks}</ul>`;
         paginationContainer.appendChild(nav);
 
+        // Add event listeners
         nav.querySelector('.pagination-previous').addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); }});
         nav.querySelector('.pagination-next').addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); }});
         nav.querySelectorAll('.pagination-link').forEach(link => {
@@ -165,9 +163,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="popup-changes-container">
-                    <div class="popup-changes-row">
+                    <div class="popup-changes-row fixed">
                         <div class="changes-row-header">
-                            <span class="icon"><i><svg style="width:24px;height:24px" viewBox="0 0 24 24"><path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" /></svg></i></span>
+                            <span class="icon"><i>handyman</i></span>
                             <h3>Downloads</h3>
                         </div>
                         <div class="changes-row-body">
@@ -190,5 +188,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === popupOverlay) popupOverlay.style.display = 'none';
     });
 
+    // --- Start the application ---
     initialize();
 });
