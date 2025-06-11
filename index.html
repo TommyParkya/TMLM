@@ -1,61 +1,290 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-    <title>MixMods Browser</title>
-    <link rel="stylesheet" href="style.css" />
-</head>
-<body>
+/* Basic Reset & GMod Font */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap");
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons");
 
-<header class="header">
-    <div class="container">
-        <a href="/" class="header-brand">
-            <img src="https://files.facepunch.com/lewis/1b1311b1/gmod-logo.svg" alt="Garry's Mod Logo"/>
-        </a>
-        <div class="header-navigation">
-            <a href="https://www.mixmods.com.br/" class="button is-secondary" id="visit-mixmods-btn" target="_blank" rel="noopener noreferrer">
-                <img src="https://www.mixmods.com.br/wp-content/uploads/2022/10/mxmlogo200.png" alt="MixMods Logo">
-                <span>Visit MixMods</span>
-            </a>
-        </div>
-    </div>
-</header>
+:root {
+    --gmod-blue: #0082FF;
+    --gmod-blue-dark: #0075e6;
+    --light-bg: #eff4f8;
+    --dark-text: #000;
+    --light-text: #fff;
+    --grey-text: #929497;
+    --card-bg: #fff;
+}
 
-<div class="blog-list-header">
-    <div class="blog-hero-image" style="background-image:url(https://files.facepunch.com/rubat/2025/May09-1347-HairyMudpuppy.png)"></div>
-    <div class="blog-list-header-body">
-        <div class="container">
-            <h1>MixMods Browser</h1>
-            <p>A lightweight, fast, and filtered browser for MixMods.</p>
-        </div>
-    </div>
-</div>
+body {
+    font-family: "Inter", sans-serif;
+    background-color: var(--light-bg);
+    margin: 0;
+    color: var(--grey-text);
+}
 
-<div class="section blog-list bg-light">
-    <div class="container">
-        <div class="filter-bar">
-            <div class="tabs">
-                <select id="game-select" class="filter-select"><option value="ALL">All Games</option><option value="SA">GTA: San Andreas</option><option value="VC">GTA: Vice City</option><option value="III">GTA: III</option></select>
-                <select id="version-select" class="filter-select"><option value="ALL">All Versions</option><option value="PC">PC</option><option value="MOBILE">Mobile</option><option value="DE">Definitive Edition</option><option value="PS2">PS2</option></select>
-            </div>
-            <div class="search-box">
-                <form onsubmit="return false;"><input type="text" id="search-input" placeholder="Filter by name"/></form>
-            </div>
-        </div>
+.container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
 
-        <div id="mod-list-container" class="blog-posts-container">
-            <div class="loading-spinner"></div>
-        </div>
+/* --- Filter Bar --- */
+.filter-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.tabs {
+    display: flex;
+    gap: 1rem;
+}
+.tabs .button, .search-box input {
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: .75rem 1.5rem;
+    border-radius: 32px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all .15s ease;
+}
+.tabs .button {
+    background-color: var(--card-bg);
+    color: var(--gmod-blue);
+    border-color: rgba(0, 130, 255, 0.2);
+}
+.tabs .button:hover {
+    background-color: var(--gmod-blue);
+    color: var(--light-text);
+}
+.search-box input {
+    border-color: rgba(146, 148, 151, .2);
+    min-width: 300px;
+}
+.search-box input:focus {
+    outline: none;
+    border-color: var(--gmod-blue);
+    box-shadow: 0 0 5px rgba(0, 130, 255, 0.5);
+}
 
-        <div id="pagination-container" class="pagination-container"></div>
-    </div>
-</div>
+/* --- Mod List --- */
+.blog-list {
+    padding: 4rem 0;
+}
+.blog-posts-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-gap: 30px;
+}
+.blog-post {
+    display: flex;
+    flex-direction: column;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+.blog-post:hover .blog-post-image img {
+    transform: scale(1.03);
+    box-shadow: 0 8px 20px rgba(0, 130, 255, .25);
+}
+.blog-post:hover .blog-post-body h1 {
+    color: var(--gmod-blue);
+}
+.blog-post-image {
+    width: 100%;
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+}
+.blog-post-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: all .2s ease;
+}
+.blog-post-body {
+    background-color: var(--card-bg);
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 130, 255, .1);
+    padding: 1.5rem;
+    position: relative;
+    top: -16px;
+    flex-grow: 1;
+}
+.blog-post-body .date {
+    align-items: center;
+    display: flex;
+    color: var(--grey-text);
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+}
+.blog-post-body .date .icon {
+    font-family: "Material Icons";
+    font-size: 18px;
+    margin-right: 4px;
+}
+.blog-post-body h1 {
+    padding: 0;
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--dark-text);
+    transition: color .15s ease;
+}
+.blog-post-body p {
+    padding: 0;
+    margin: 10px 0 0 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
 
-<div id="popup-overlay" class="lightbox-overlay" style="display: none;">
-    <div id="popup-content" class="lightbox-content"></div>
-</div>
+/* --- Pagination --- */
+.pagination-container {
+    margin-top: 4rem;
+}
+nav.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+.pagination-link, .pagination-ellipsis, .pagination-previous, .pagination-next {
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+    text-decoration: none;
+    padding: .5rem 1rem;
+    border-radius: 32px;
+    background-color: var(--card-bg);
+    color: var(--grey-text);
+    border: 0;
+    box-shadow: 0 4px 8px rgba(0, 130, 255, .1);
+    transition: all .15s ease;
+    cursor: pointer;
+}
+.pagination-link:hover, .pagination-previous:hover, .pagination-next:hover {
+    background-color: var(--gmod-blue);
+    color: var(--light-text);
+}
+.pagination-link.is-current {
+    background-color: var(--gmod-blue);
+    color: var(--light-text);
+    pointer-events: none;
+}
+.pagination-ellipsis {
+    background: none;
+    box-shadow: none;
+    pointer-events: none;
+}
+[disabled].pagination-previous, [disabled].pagination-next {
+    opacity: 0.5;
+    pointer-events: none;
+}
 
-<script src="script.js"></script>
-</body>
-</html>
+/* --- Loader --- */
+.loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 5rem;
+}
+.loader {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid var(--gmod-blue);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Popup / Modal --- */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.popup-box {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: 10px;
+    max-width: 700px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+.popup-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: var(--grey-text);
+    cursor: pointer;
+}
+.popup-thumbnail {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+.popup-box h1 {
+    font-size: 2rem;
+    color: var(--dark-text);
+    margin: 0 0 1rem 0;
+}
+.popup-box p {
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+.popup-downloads a {
+    display: block;
+    background-color: var(--gmod-blue);
+    color: var(--light-text);
+    padding: 0.75rem 1.5rem;
+    border-radius: 5px;
+    text-decoration: none;
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    transition: background-color 0.2s;
+}
+.popup-downloads a:hover {
+    background-color: var(--gmod-blue-dark);
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .blog-posts-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+@media (max-width: 600px) {
+    .filter-bar {
+        flex-direction: column;
+    }
+    .tabs, .search-box {
+        width: 100%;
+    }
+    .search-box input {
+        min-width: 0;
+        width: 100%;
+    }
+    .blog-posts-container {
+        grid-template-columns: 1fr;
+    }
+}
