@@ -1,1 +1,51 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
+    <title>MixMods Browser</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<header class="header">
+    <div class="container">
+        <a href="/" class="header-brand">
+            <img src="https://files.facepunch.com/lewis/1b1311b1/gmod-logo.svg" alt="Garry's Mod Logo"/>
+        </a>
+        <div class="header-navigation">
+            <a class="is-active">Mods</a>
+        </div>
+    </div>
+</header>
+
+<div class="blog-list-header">
+    <div class="blog-hero-image" style="background-image:url(https://files.facepunch.com/rubat/2025/May09-1347-HairyMudpuppy.png)"></div>
+    <div class="blog-list-header-body">
+        <div class="container">
+            <h1>MixMods Browser</h1>
+            <p>A lightweight, fast, and filtered browser for MixMods.</p>
+        </div>
+    </div>
+</div>
+
+<div class="section blog-list bg-light">
+    <div class="container">
+        <!-- The JavaScript will generate the mod list inside this container -->
+        <div id="mod-list-container" class="blog-posts-container">
+            <p>Loading mods...</p>
+        </div>
+    </div>
+</div>
+
+<!-- This is the hidden popup structure -->
+<div id="popup-overlay" class="lightbox-overlay" style="display: none;">
+    <div id="popup-content" class="lightbox-content">
+        <!-- Popup content will be generated here -->
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
