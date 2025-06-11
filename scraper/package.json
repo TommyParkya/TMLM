@@ -1,1 +1,14 @@
-
+{
+  "name": "mixmods-scraper",
+  "version": "1.0.0",
+  "description": "Scrapes MixMods for a static site.",
+  "main": "scrape.js",
+  "type": "module",
+  "scripts": {
+    "start": "node scrape.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0-rc.12"
+  }
+}
