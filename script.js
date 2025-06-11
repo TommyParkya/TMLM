@@ -4,33 +4,46 @@ document.addEventListener('DOMContentLoaded', () => {
     const popupOverlay = document.getElementById('popup-overlay');
     const closeButton = document.querySelector('.close-button');
 
-    // Fetch the data from our JSON file
     fetch('./data.json')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(modsData => {
             renderMods(modsData);
         })
         .catch(error => {
-            modListContainer.innerHTML = '<p class="loading-text">Error loading updates. Please try again later.</p>';
+            modListContainer.innerHTML = '<p class="loading-text">Error loading mods. The data file might be missing or corrupt.</p>';
             console.error('Error fetching mod data:', error);
         });
 
     function renderMods(mods) {
-        modListContainer.innerHTML = ''; // Clear the "Loading..." text
-        if (mods.length === 0) {
-            modListContainer.innerHTML = '<p class="loading-text">No updates found.</p>';
+        modListContainer.innerHTML = '';
+        if (!mods || mods.length === 0) {
+            modListContainer.innerHTML = '<p class="loading-text">No mods found. The scraper might need to be run.</p>';
             return;
         }
+
+        // Sort mods by date, newest first
+        mods.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
 
         mods.forEach(mod => {
             const card = document.createElement('div');
             card.className = 'mod-card';
             
+            // Format date for display
+            const date = new Date(mod.uploadDate);
+            const formattedDate = date.toLocaleDateString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric'
+            });
+
             card.innerHTML = `
-                <img src="${mod.thumbnailUrl}" alt="${mod.title}" class="mod-card-thumbnail">
+                <img src="${mod.thumbnailUrl}" alt="${mod.title}" class="mod-card-thumbnail" loading="lazy">
                 <div class="mod-card-body">
                     <h3>${mod.title}</h3>
-                    <p>${mod.uploadDate}</p>
+                    <p>${formattedDate}</p>
                 </div>
             `;
 
@@ -45,27 +58,30 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('popup-description').textContent = mod.description;
 
         const downloadsContainer = document.getElementById('popup-downloads');
-        downloadsContainer.innerHTML = ''; // Clear previous links
+        downloadsContainer.innerHTML = '';
 
-        mod.downloadLinks.forEach(link => {
-            const a = document.createElement('a');
-            a.href = link.url;
-            a.textContent = link.displayText;
-            a.target = '_blank'; // Open in a new tab
-            downloadsContainer.appendChild(a);
-        });
+        if (mod.downloadLinks && mod.downloadLinks.length > 0) {
+            mod.downloadLinks.forEach(link => {
+                const a = document.createElement('a');
+                a.href = link.url;
+                a.textContent = link.displayText || 'Download Link';
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                downloadsContainer.appendChild(a);
+            });
+        } else {
+            downloadsContainer.innerHTML = '<p>No direct download links found.</p>';
+        }
 
-        popupOverlay.style.display = 'flex';
+        popupOverlay.classList.add('visible');
     }
 
     function hidePopup() {
-        popupOverlay.style.display = 'none';
+        popupOverlay.classList.remove('visible');
     }
 
-    // Event listeners to close the popup
     closeButton.addEventListener('click', hidePopup);
     popupOverlay.addEventListener('click', (event) => {
-        // Only close if the overlay itself is clicked, not the content inside
         if (event.target === popupOverlay) {
             hidePopup();
         }
