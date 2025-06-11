@@ -14,26 +14,25 @@
             <img src="https://files.facepunch.com/lewis/1b1311b1/gmod-logo.svg" alt="Garry's Mod Logo"/>
         </a>
         <div class="header-navigation">
-            <a href="https://www.mixmods.com.br/" class="button is-secondary" target="_blank" rel="noopener noreferrer">
+            <a href="https://www.mixmods.com.br/" class="button is-secondary" id="visit-mixmods-btn" target="_blank" rel="noopener noreferrer">
+                <img src="https://www.mixmods.com.br/wp-content/uploads/2022/10/mxmlogo200.png" alt="MixMods Logo">
                 <span>Visit MixMods</span>
             </a>
         </div>
     </div>
 </header>
 
-<div class="page-hero changes">
-    <div class="hero-image transition-header" style="background-image:url(https://files.facepunch.com/lewis/1b1311b1/buy-bg.jpg)"></div>
-    <div class="hero-body center">
+<div class="blog-list-header">
+    <div class="blog-hero-image" style="background-image:url(https://files.facepunch.com/rubat/2025/May09-1347-HairyMudpuppy.png)"></div>
+    <div class="blog-list-header-body">
         <div class="container">
-            <div class="body-info">
-                <h1>MixMods Browser</h1>
-                <p>A lightweight, fast, and filtered browser for MixMods.</p>
-            </div>
+            <h1>MixMods Browser</h1>
+            <p>A lightweight, fast, and filtered browser for MixMods.</p>
         </div>
     </div>
 </div>
 
-<div class="section is-medium bg-light page-changelist">
+<div class="section blog-list bg-light">
     <div class="container">
         <div class="filter-bar">
             <div class="tabs">
@@ -45,12 +44,16 @@
             </div>
         </div>
 
-        <!-- Mod list and pagination will be generated here -->
-        <div id="mod-list-container">
+        <div id="mod-list-container" class="blog-posts-container">
             <div class="loading-spinner"></div>
         </div>
-        <div id="pagination-container"></div>
+
+        <div id="pagination-container" class="pagination-container"></div>
     </div>
+</div>
+
+<div id="popup-overlay" class="lightbox-overlay" style="display: none;">
+    <div id="popup-content" class="lightbox-content"></div>
 </div>
 
 <script src="script.js"></script>
