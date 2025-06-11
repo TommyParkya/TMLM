@@ -32,9 +32,10 @@ jobs:
         run: node scrape.js
         working-directory: ./scraper
 
-      # 5. Commit and push the updated data.json file to the repository
+  # 5. Commit and push the updated data.json file to the repository
       - name: Commit and push if data changed
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'Automated: Update mod data'
-          file_pattern: 'public/data.json'
+          # Change this line from 'public/data.json'
+          file_pattern: 'data.json'
