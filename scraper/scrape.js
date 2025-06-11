@@ -2,12 +2,28 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { promises as fs } from 'fs';
 import path from 'path';
-import translate from '@iamtraction/google-translate';
 
 const BASE_URL = 'https://www.mixmods.com.br';
 const OUTPUT_PATH = path.join('..', 'data.json');
+const TRANSLATE_API = 'https://libretranslate.de/translate'; // Using a public LibreTranslate instance
 
-// --- Helper function to detect game from categories ---
+// --- New, reliable translation function ---
+async function translateText(text, from = 'pt', to = 'en') {
+    if (!text) return '';
+    try {
+        const response = await axios.post(TRANSLATE_API, {
+            q: text,
+            source: from,
+            target: to,
+            format: 'text'
+        });
+        return response.data.translatedText || text; // Fallback to original text on failure
+    } catch (error) {
+        console.warn(`  -> Translation failed for text snippet. Using original. Error: ${error.message}`);
+        return text; // Gracefully return original text if API fails
+    }
+}
+
 function detectGame($, article) {
     let game = 'Unknown';
     article.find('span.cat-links a').each((i, el) => {
@@ -19,7 +35,6 @@ function detectGame($, article) {
     return game;
 }
 
-// --- Helper function to add game prefix to title ---
 function formatTitle(title, game) {
     const prefixes = { SA: '[SA]', VC: '[VC]', III: '[III]' };
     const prefix = prefixes[game];
@@ -30,7 +45,7 @@ function formatTitle(title, game) {
 }
 
 async function main() {
-    console.log('--- Starting Advanced MixMods Scraper v2 ---');
+    console.log('--- Starting Robust MixMods Scraper v3 ---');
     const allMods = [];
     let page = 1;
     const maxPages = 50;
@@ -42,7 +57,6 @@ async function main() {
         try {
             const { data: listHtml } = await axios.get(listUrl);
             const $list = cheerio.load(listHtml);
-
             const articles = $list('article:not(:has(span.cat-links a[href*="/novidades/"]))');
             if (articles.length === 0) break;
 
@@ -69,34 +83,22 @@ async function main() {
                     const thumbnailUrl = article.find('.post-image img').attr('src') || 'https://files.facepunch.com/lewis/1b1311b1/gmod-header.jpg';
                     let originalDescription = $mod('.entry-content p').first().text().trim();
 
-                    // --- Auto-Translation Logic ---
-                    let translatedTitle = formatTitle(originalTitle, game);
-                    let translatedDescription = originalDescription;
-                    try {
-                        const [titleRes, descRes] = await Promise.all([
-                            translate(originalTitle, { from: 'pt', to: 'en' }),
-                            translate(originalDescription, { from: 'pt', to: 'en' })
-                        ]);
-                        translatedTitle = formatTitle(titleRes.text, game);
-                        translatedDescription = descRes.text;
-                        console.log(`  -> Translated "${originalTitle}"`);
-                    } catch (e) {
-                        console.log(`  -> Translation failed for "${originalTitle}", using original text. Error: ${e.message}`);
-                    }
+                    const translatedTitle = formatTitle(await translateText(originalTitle), game);
+                    const translatedDescription = await translateText(originalDescription);
 
                     const downloadLinks = [];
-                    let combinedTextForVersionCheck = originalTitle; // Start with title
+                    let combinedTextForVersionCheck = originalTitle.toLowerCase();
                     downloadElements.each((i, linkEl) => {
                         const link = $mod(linkEl);
                         const url = link.attr('href');
                         const text = link.text().trim() || 'Download';
                         if (url) {
                             downloadLinks.push({ displayText: text, url: url });
-                            combinedTextForVersionCheck += ' ' + text; // Add to version check
+                            combinedTextForVersionCheck += ' ' + text.toLowerCase();
                         }
                     });
                     
-                    combinedTextForVersionCheck += ' ' + originalDescription;
+                    combinedTextForVersionCheck += ' ' + originalDescription.toLowerCase();
 
                     allMods.push({
                         title: translatedTitle,
@@ -113,6 +115,7 @@ async function main() {
                             ps2: /ps2/i.test(combinedTextForVersionCheck)
                         }
                     });
+                    console.log(`  -> SUCCESS: Processed "${originalTitle}"`);
 
                 } catch (modPageError) { /* Skip mod on error */ }
             }
