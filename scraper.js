@@ -5,32 +5,16 @@ const fs = require('fs/promises');
 
 const log = (level, message) => console.log(`[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`);
 
-const GAME_TAGS_MAP = {
-    'gta-sao-andreas-mods': '[SA]',
-    'gta-vice-city-mods': '[VC]',
-    'gta-3-mods': '[III]'
-};
-
-const VERSION_TAGS_MAP = {
-    'pc': '[PC]',
-    'mobile': '[Mobile]',
-    'the-definitive-edition-trilogy': '[DE]',
-    'ps2': '[PS2]'
-};
+const GAME_TAGS_MAP = { 'gta-sao-andreas-mods': '[SA]', 'gta-vice-city-mods': '[VC]', 'gta-3-mods': '[III]' };
+const VERSION_TAGS_MAP = { 'pc': '[PC]', 'mobile': '[Mobile]', 'the-definitive-edition-trilogy': '[DE]', 'ps2': '[PS2]' };
 
 function getTagsFromCategories($, categoryLinks) {
     const tags = { game: '', version: '' };
     categoryLinks.each((i, el) => {
-        const href = $(el).attr('href');
-        if (!href) return;
-
-        const slug = href.split('/').filter(Boolean).pop();
-        if (GAME_TAGS_MAP[slug]) {
-            tags.game = GAME_TAGS_MAP[slug];
-        }
-        if (VERSION_TAGS_MAP[slug]) {
-            tags.version = VERSION_TAGS_MAP[slug];
-        }
+        const href = $(el).attr('href') || '';
+        const slug = href.split('/').filter(Boolean).pop() || '';
+        if (GAME_TAGS_MAP[slug]) tags.game = GAME_TAGS_MAP[slug];
+        if (VERSION_TAGS_MAP[slug]) tags.version = VERSION_TAGS_MAP[slug];
     });
     return tags;
 }
@@ -38,14 +22,12 @@ function getTagsFromCategories($, categoryLinks) {
 async function scrapeMixmods() {
     log('info', 'Starting MixMods scraper...');
     const baseUrl = "https://www.mixmods.com.br";
-    let allMods = [];
+    const allMods = [];
     let pageNum = 1;
     let keepScraping = true;
 
     const session = axios.create({
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
-        }
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36' }
     });
 
     while (keepScraping) {
@@ -71,66 +53,62 @@ async function scrapeMixmods() {
                     const titleTag = articleElement.find('h2.entry-title a');
                     if (!titleTag.attr('href')) continue;
 
-                    const originalTitle = titleTag.text().trim();
                     modData.modPageUrl = titleTag.attr('href');
-                    modData.id = modData.modPageUrl.split('/').filter(Boolean).pop();
                     
-                    const dateTag = articleElement.find('time.entry-date.published');
-                    modData.uploadDate = dateTag.attr('datetime') || new Date().toISOString();
-
-                    const thumbTag = articleElement.find('div.post-image a img');
-                    modData.thumbnailUrl = thumbTag.attr('src') || "";
-                    
-                    const categoryLinks = articleElement.find('span.cat-links a');
-                    const tags = getTagsFromCategories($, categoryLinks);
-                    modData.gameTag = tags.game;
-                    modData.versionTag = tags.version;
-
-                    let newTitle = originalTitle;
-                    if (tags.game && !newTitle.includes(tags.game)) {
-                        newTitle = `${tags.game} ${newTitle}`;
-                    }
-                    if (tags.version && !newTitle.includes(tags.version)) {
-                        newTitle = `${tags.version} ${newTitle}`;
-                    }
-                    modData.title = newTitle;
-
                     log('info', `     Visiting mod page: ${modData.modPageUrl}`);
                     const modPageResponse = await session.get(modData.modPageUrl, { timeout: 30000 });
                     const $$ = cheerio.load(modPageResponse.data);
 
-                    const downloadButtonA = $$('a.download_bt1');
-                    const downloadButtonB = $$('a img[src*="download-baixar-4532137.png"]');
+                    // **CORRECTED SELECTORS FOR DOWNLOAD LINKS**
+                    // The download buttons can be in a few different places/structures.
+                    // This finds all possible download links within the main content area.
+                    const contentArea = $$('div.entry-content');
+                    const downloadLinks = contentArea.find('a.download_bt1, a:has(img[src*="download-baixar-4532137.png"])');
 
-                    if (downloadButtonA.length === 0 && downloadButtonB.length === 0) {
-                        log('warning', `     DISCARDED: ${originalTitle} (No download link)`);
+                    if (downloadLinks.length === 0) {
+                        log('warning', `     DISCARDED: ${titleTag.text().trim()} (No download link found in content)`);
                         continue;
                     }
+                    
+                    const originalTitle = $$('h1.entry-title').text().trim();
+                    modData.id = modData.modPageUrl.split('/').filter(Boolean).pop();
+                    modData.uploadDate = $$('time.entry-date.published').attr('datetime') || new Date().toISOString();
+                    modData.thumbnailUrl = $$('meta[property="og:image"]').attr('content') || "";
+                    
+                    const categoryLinks = $$('span.cat-links a');
+                    const tags = getTagsFromCategories($$, categoryLinks);
+                    modData.gameTag = tags.game;
+                    modData.versionTag = tags.version;
 
-                    const entryContent = $$('div.entry-content');
-                    const firstP = entryContent.find('p').first();
+                    let newTitle = originalTitle;
+                    if (tags.game && !newTitle.includes(tags.game)) newTitle = `${tags.game} ${newTitle}`;
+                    if (tags.version && !newTitle.includes(tags.version)) newTitle = `${tags.version} ${newTitle}`;
+                    modData.title = newTitle;
+                    
+                    const firstP = contentArea.find('p').first();
                     modData.description = firstP.text().trim() || "No description found.";
 
                     modData.downloadLinks = [];
-                    downloadButtonA.each((i, el) => {
+                    downloadLinks.each((i, el) => {
                         const link = $$(el);
-                        modData.downloadLinks.push({
-                            displayText: link.text().trim(),
-                            url: link.attr('href')
-                        });
-                    });
-                    downloadButtonB.each((i, el) => {
-                        const link = $$(el).closest('a');
-                        if (link.attr('href')) {
+                        const url = link.attr('href');
+                        // Ensure it's a valid link and not a javascript void link
+                        if (url && url !== '#' && !url.startsWith('javascript:')) {
+                            const isImageButton = link.find('img').length > 0;
                             modData.downloadLinks.push({
-                                displayText: $$(el).attr('alt') || 'Download',
-                                url: link.attr('href')
+                                displayText: isImageButton ? (link.find('img').attr('alt') || 'Download') : link.text().trim(),
+                                url: url
                             });
                         }
                     });
 
-                    allMods.push(modData);
-                    log('info', `     ADDED: ${modData.title}`);
+                    // Only add if we actually found valid links
+                    if(modData.downloadLinks.length > 0) {
+                        allMods.push(modData);
+                        log('info', `     ADDED: ${modData.title}`);
+                    } else {
+                        log('warning', `     DISCARDED: ${originalTitle} (Found link tags but no valid href)`);
+                    }
 
                 } catch (articleError) {
                     log('error', `    !! Error processing article: ${articleError.message}`);
