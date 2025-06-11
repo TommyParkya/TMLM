@@ -1,5 +1,5 @@
 // scraper.js
-const axios = require('axios');
+const puppeteer = require('puppeteer');
 const cheerio = require('cheerio');
 const fs = require('fs/promises');
 
@@ -20,23 +20,27 @@ function getTagsFromCategories($, categoryLinks) {
 }
 
 async function scrapeMixmods() {
-    log('info', 'Starting MixMods scraper...');
+    log('info', 'Starting MixMods scraper with Puppeteer...');
+    const browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] // Necessary for GitHub Actions
+    });
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36');
+
     const baseUrl = "https://www.mixmods.com.br";
-    const allMods = [];
+    let allMods = [];
     let pageNum = 1;
     let keepScraping = true;
-
-    const session = axios.create({
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36' }
-    });
 
     while (keepScraping) {
         const listUrl = `${baseUrl}/page/${pageNum}`;
         log('info', `Scraping list page: ${listUrl}`);
 
         try {
-            const response = await session.get(listUrl, { timeout: 30000 });
-            const $ = cheerio.load(response.data);
+            await page.goto(listUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
+            const content = await page.content();
+            const $ = cheerio.load(content);
             const validArticles = $('article:not(:has(span.cat-links a[href*="/novidades/"]))');
 
             if (validArticles.length === 0) {
@@ -52,25 +56,23 @@ async function scrapeMixmods() {
                 try {
                     const titleTag = articleElement.find('h2.entry-title a');
                     if (!titleTag.attr('href')) continue;
-
-                    modData.modPageUrl = titleTag.attr('href');
                     
-                    log('info', `     Visiting mod page: ${modData.modPageUrl}`);
-                    const modPageResponse = await session.get(modData.modPageUrl, { timeout: 30000 });
-                    const $$ = cheerio.load(modPageResponse.data);
+                    modData.modPageUrl = titleTag.attr('href');
+                    const originalTitle = titleTag.text().trim();
 
-                    // **CORRECTED SELECTORS FOR DOWNLOAD LINKS**
-                    // The download buttons can be in a few different places/structures.
-                    // This finds all possible download links within the main content area.
+                    log('info', `     Visiting mod page: ${modData.modPageUrl}`);
+                    await page.goto(modData.modPageUrl, { waitUntil: 'networkidle2', timeout: 60000 });
+                    const modPageContent = await page.content();
+                    const $$ = cheerio.load(modPageContent);
+
                     const contentArea = $$('div.entry-content');
                     const downloadLinks = contentArea.find('a.download_bt1, a:has(img[src*="download-baixar-4532137.png"])');
 
                     if (downloadLinks.length === 0) {
-                        log('warning', `     DISCARDED: ${titleTag.text().trim()} (No download link found in content)`);
+                        log('warning', `     DISCARDED: ${originalTitle} (No download link found after render)`);
                         continue;
                     }
                     
-                    const originalTitle = $$('h1.entry-title').text().trim();
                     modData.id = modData.modPageUrl.split('/').filter(Boolean).pop();
                     modData.uploadDate = $$('time.entry-date.published').attr('datetime') || new Date().toISOString();
                     modData.thumbnailUrl = $$('meta[property="og:image"]').attr('content') || "";
@@ -80,7 +82,7 @@ async function scrapeMixmods() {
                     modData.gameTag = tags.game;
                     modData.versionTag = tags.version;
 
-                    let newTitle = originalTitle;
+                    let newTitle = $$('h1.entry-title').text().trim();
                     if (tags.game && !newTitle.includes(tags.game)) newTitle = `${tags.game} ${newTitle}`;
                     if (tags.version && !newTitle.includes(tags.version)) newTitle = `${tags.version} ${newTitle}`;
                     modData.title = newTitle;
@@ -92,7 +94,6 @@ async function scrapeMixmods() {
                     downloadLinks.each((i, el) => {
                         const link = $$(el);
                         const url = link.attr('href');
-                        // Ensure it's a valid link and not a javascript void link
                         if (url && url !== '#' && !url.startsWith('javascript:')) {
                             const isImageButton = link.find('img').length > 0;
                             modData.downloadLinks.push({
@@ -102,8 +103,7 @@ async function scrapeMixmods() {
                         }
                     });
 
-                    // Only add if we actually found valid links
-                    if(modData.downloadLinks.length > 0) {
+                    if (modData.downloadLinks.length > 0) {
                         allMods.push(modData);
                         log('info', `     ADDED: ${modData.title}`);
                     } else {
@@ -111,20 +111,17 @@ async function scrapeMixmods() {
                     }
 
                 } catch (articleError) {
-                    log('error', `    !! Error processing article: ${articleError.message}`);
+                    log('error', `    !! Error processing article ${modData.modPageUrl}: ${articleError.message}`);
                 }
             }
             pageNum++;
         } catch (error) {
-            if (error.response && error.response.status === 404) {
-                log('warning', "Reached end of pages (404 Not Found).");
-            } else {
-                log('error', `Error fetching list page ${listUrl}: ${error.message}`);
-            }
+            log('error', `Error on page ${pageNum}: ${error.message}`);
             keepScraping = false;
         }
     }
-
+    
+    await browser.close();
     log('info', `\nScraping complete. Found ${allMods.length} valid mods.`);
 
     try {
