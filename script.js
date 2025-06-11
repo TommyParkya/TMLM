@@ -23,8 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
             allMods = data;
             applyFilters();
         } catch (error) {
-            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">Error loading mods. The data file might be missing or invalid.</p>`;
-            console.error('Error fetching mod data:', error);
+            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">Error loading mods. The data file might be missing or invalid. Please run the scraper action on GitHub.</p>`;
         }
     }
 
@@ -66,10 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
             postElement.setAttribute('data-index', globalIndex);
             
             const uploadDate = new Date(mod.uploadDate).toLocaleDateString();
+            // Thumbnail Fix: Use a fallback if the URL is invalid
+            const thumbnailUrl = mod.thumbnailUrl || 'https://files.facepunch.com/lewis/1b1311b1/gmod-header.jpg';
 
             postElement.innerHTML = `
                 <a class="blog-post-image">
-                    <img src="${mod.thumbnailUrl}" alt="${mod.title}" loading="lazy">
+                    <img src="${thumbnailUrl}" alt="${mod.title}" loading="lazy">
                 </a>
                 <div class="blog-post-body">
                     <div class="date">
@@ -91,28 +92,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const nav = document.createElement('nav');
         nav.className = 'pagination';
-        nav.innerHTML = `
-            <a class="pagination-previous"><i>arrow_left</i></a>
-            <a class="pagination-next"><i>arrow_right</i></a>
-            <ul class="pagination-list"></ul>
-        `;
+        nav.setAttribute('role', 'navigation');
+        nav.setAttribute('aria-label', 'pagination');
+
+        const prevButton = `<a class="pagination-previous" ${currentPage === 1 ? 'disabled' : ''}><i>arrow_left</i></a>`;
+        const nextButton = `<a class="pagination-next" ${currentPage === totalPages ? 'disabled' : ''}><i>arrow_right</i></a>`;
         
-        const list = nav.querySelector('.pagination-list');
-        for (let i = 1; i <= totalPages; i++) {
-            list.innerHTML += `<li><a href="#" class="pagination-link ${i === currentPage ? 'is-current' : ''}" data-page="${i}">${i}</a></li>`;
+        let pageLinks = '';
+        // Ellipsis Pagination Logic
+        const pagesToShow = [];
+        if (totalPages <= 7) {
+            for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
+        } else {
+            pagesToShow.push(1);
+            if (currentPage > 3) pagesToShow.push('...');
+            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                pagesToShow.push(i);
+            }
+            if (currentPage < totalPages - 2) pagesToShow.push('...');
+            pagesToShow.push(totalPages);
         }
 
+        pagesToShow.forEach(page => {
+            if (page === '...') {
+                pageLinks += `<li><span class="pagination-ellipsis">…</span></li>`;
+            } else {
+                pageLinks += `<li><a href="#" class="pagination-link ${page === currentPage ? 'is-current' : ''}" data-page="${page}">${page}</a></li>`;
+            }
+        });
+
+        nav.innerHTML = `${prevButton}${nextButton}<ul class="pagination-list">${pageLinks}</ul>`;
         paginationContainer.appendChild(nav);
 
-        // Add event listeners for new pagination buttons
-        const prevButton = nav.querySelector('.pagination-previous');
-        const nextButton = nav.querySelector('.pagination-next');
-        
-        if (currentPage === 1) prevButton.setAttribute('disabled', true);
-        if (currentPage === totalPages) nextButton.setAttribute('disabled', true);
-
-        prevButton.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); }});
-        nextButton.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); }});
+        // Add event listeners
+        nav.querySelector('.pagination-previous').addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); }});
+        nav.querySelector('.pagination-next').addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); }});
         nav.querySelectorAll('.pagination-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -124,22 +138,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function showPopup(mod) {
+        const uploadDate = new Date(mod.uploadDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
         const downloadLinksHtml = mod.downloadLinks.map(link => 
-            `<a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.displayText}</a>`
+            `<li><span>•</span><div class="entry"><a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.displayText}</a></div></li>`
         ).join('');
 
         popupContent.innerHTML = `
             <div class="popup-blog-hero">
                 <div class="popup-hero-image" style="background-image:url(${mod.thumbnailUrl})"></div>
                 <div class="popup-hero-body">
+                    <div class="tags">
+                        <div class="tag secondary">
+                            <span class="icon"><i>schedule</i></span> ${uploadDate}
+                        </div>
+                        <a class="tag outline update">${mod.game}</a>
+                    </div>
                     <h1>${mod.title}</h1>
                 </div>
             </div>
-            <div class="popup-blog-content">
-                <p>${mod.description}</p>
-                <div class="popup-download-section">
-                    <h3>Downloads</h3>
-                    ${downloadLinksHtml || '<p>No direct download links found.</p>'}
+            <div class="popup-blog-container">
+                <div class="popup-blog-section">
+                    <div class="content">
+                        <p>${mod.description}</p>
+                    </div>
+                </div>
+                <div class="popup-changes-container">
+                    <div class="popup-changes-row fixed">
+                        <div class="changes-row-header">
+                            <span class="icon"><i>handyman</i></span>
+                            <h3>Downloads</h3>
+                        </div>
+                        <div class="changes-row-body">
+                            <ul>${downloadLinksHtml || '<li>No direct download links found.</li>'}</ul>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
