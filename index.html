@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
-    <title>Mod Details</title>
+    <title>MixMods Browser</title>
     <link rel="stylesheet" href="styles.min.css" />
     <meta name="theme-color" content="#0082FF">
 </head>
@@ -11,41 +11,56 @@
 
 <header class="header">
     <div class="container">
-        <a href="index.html" class="header-brand">
+        <a href="/" class="header-brand">
             <img src="https://files.facepunch.com/lewis/1b1311b1/gmod-logo.svg" alt="Logo"/>
         </a>
         <div class="header-navigation">
-            <a href="index.html">Back to Mods</a>
+            <a class="is-active is-active-exact" href="/">Mods</a>
         </div>
     </div>
 </header>
 
-<div class="blog-hero">
-    <div id="mod-hero-image" class="blog-hero-image transition-header" style="background-image:url()"></div>
-    <div class="blog-hero-body">
+<div class="blog-list-header">
+    <div class="blog-hero-image transition-header" style="background-image:url(https://files.facepunch.com/rubat/2025/May09-1347-HairyMudpuppy.png)"></div>
+    <div class="blog-list-header-body">
         <div class="container">
-            <div class="body-info">
-                <div class="tags">
-                    <div id="mod-date" class="tag secondary">
-                        <span class="icon"><i>schedule</i></span>
-                    </div>
-                </div>
-                <h1 id="mod-title">Loading...</h1>
-            </div>
+            <h1>The MixMods Archive</h1>
+            <p>A lightweight, searchable archive of mods from MixMods.</p>
         </div>
     </div>
 </div>
 
-<div class="blog" id="mod-content-container">
-    <div class="section">
-        <div class="content">
-            <h2>Description</h2>
-            <p id="mod-description"></p>
-            <br/>
-            <h2>Download Links</h2>
-            <div id="mod-downloads" class="buttons" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
-                <!-- Download buttons will be populated here -->
+<div class="section blog-list bg-light">
+    <div class="container">
+        <div class="filter-bar">
+            <div class="tabs">
+                <select id="game-filter" class="button is-medium is-outline">
+                    <option value="all">All Games</option>
+                    <option value="[SA]">GTA SA</option>
+                    <option value="[VC]">GTA VC</option>
+                    <option value="[III]">GTA III</option>
+                </select>
+                <select id="version-filter" class="button is-medium is-outline">
+                    <option value="all">All Versions</option>
+                    <option value="[PC]">PC</option>
+                    <option value="[Mobile]">Mobile</option>
+                    <option value="[DE]">Definitive Edition</option>
+                    <option value="[PS2]">PS2</option>
+                </select>
             </div>
+            <div class="search-box">
+                <form onsubmit="return false;">
+                    <input type="text" id="search-input" name="search" placeholder="Filter by name..."/>
+                </form>
+            </div>
+        </div>
+
+        <div class="blog-posts-container">
+            <p style="color: #000; text-align: center; font-size: 2rem;">Loading mods...</p>
+        </div>
+        
+        <div class="pagination-container">
+            <!-- Pagination will be inserted here by script.js -->
         </div>
     </div>
 </div>
@@ -56,7 +71,6 @@
     </div>
 </footer>
 
-<script>window.RequestToken = "STATIC_SITE";</script>
 <script src="script.js"></script>
 </body>
 </html>
