@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modListContainer = document.getElementById('mod-list-container');
     const paginationContainer = document.getElementById('pagination-container');
     const searchInput = document.getElementById('search-input');
+    const gameSelect = document.getElementById('game-select');
+    const versionSelect = document.getElementById('version-select');
     const popupOverlay = document.getElementById('popup-overlay');
     const popupContent = document.getElementById('popup-content');
 
@@ -16,20 +18,33 @@ document.addEventListener('DOMContentLoaded', () => {
     async function initialize() {
         try {
             const response = await fetch('./data.json');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
             allMods = data;
-            filteredMods = data;
-            render();
+            applyFilters();
         } catch (error) {
-            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">Error loading mods. The data file might be missing or invalid. Please try running the scraper action on GitHub.</p>`;
-            console.error('Error fetching or parsing mod data:', error);
+            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">Error loading mods. The data file might be missing or invalid.</p>`;
+            console.error('Error fetching mod data:', error);
         }
     }
 
-    // --- Rendering Functions ---
+    // --- Filtering and Rendering ---
+    function applyFilters() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const selectedGame = gameSelect.value;
+        const selectedVersion = versionSelect.value;
+
+        filteredMods = allMods.filter(mod => {
+            const matchesSearch = mod.title.toLowerCase().includes(searchTerm) || mod.description.toLowerCase().includes(searchTerm);
+            const matchesGame = selectedGame === 'ALL' || mod.game === selectedGame;
+            const matchesVersion = selectedVersion === 'ALL' || mod.version[selectedVersion.toLowerCase()];
+            return matchesSearch && matchesGame && matchesVersion;
+        });
+
+        currentPage = 1;
+        render();
+    }
+
     function render() {
         renderModList();
         renderPagination();
@@ -38,15 +53,13 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderModList() {
         modListContainer.innerHTML = '';
         if (filteredMods.length === 0) {
-            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">No mods match your search.</p>`;
+            modListContainer.innerHTML = `<p style="text-align: center; width: 100%; color: #000;">No mods match your filters.</p>`;
             return;
         }
 
-        const startIndex = (currentPage - 1) * modsPerPage;
-        const endIndex = startIndex + modsPerPage;
-        const paginatedMods = filteredMods.slice(startIndex, endIndex);
+        const paginatedMods = filteredMods.slice((currentPage - 1) * modsPerPage, currentPage * modsPerPage);
 
-        paginatedMods.forEach((mod, index) => {
+        paginatedMods.forEach(mod => {
             const globalIndex = allMods.findIndex(m => m.modPageUrl === mod.modPageUrl);
             const postElement = document.createElement('div');
             postElement.className = 'blog-post';
@@ -78,33 +91,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const nav = document.createElement('nav');
         nav.className = 'pagination';
-        nav.setAttribute('role', 'navigation');
-        nav.setAttribute('aria-label', 'pagination');
-
-        const list = document.createElement('ul');
-        list.className = 'pagination-list';
-
+        nav.innerHTML = `
+            <a class="pagination-previous"><i>arrow_left</i></a>
+            <a class="pagination-next"><i>arrow_right</i></a>
+            <ul class="pagination-list"></ul>
+        `;
+        
+        const list = nav.querySelector('.pagination-list');
         for (let i = 1; i <= totalPages; i++) {
-            const li = document.createElement('li');
-            const a = document.createElement('a');
-            a.className = 'pagination-link';
-            if (i === currentPage) {
-                a.classList.add('is-current');
-            }
-            a.textContent = i;
-            a.setAttribute('aria-label', `Page ${i}`);
-            a.href = '#';
-            a.addEventListener('click', (e) => {
+            list.innerHTML += `<li><a href="#" class="pagination-link ${i === currentPage ? 'is-current' : ''}" data-page="${i}">${i}</a></li>`;
+        }
+
+        paginationContainer.appendChild(nav);
+
+        // Add event listeners for new pagination buttons
+        const prevButton = nav.querySelector('.pagination-previous');
+        const nextButton = nav.querySelector('.pagination-next');
+        
+        if (currentPage === 1) prevButton.setAttribute('disabled', true);
+        if (currentPage === totalPages) nextButton.setAttribute('disabled', true);
+
+        prevButton.addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); }});
+        nextButton.addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); }});
+        nav.querySelectorAll('.pagination-link').forEach(link => {
+            link.addEventListener('click', (e) => {
                 e.preventDefault();
-                currentPage = i;
+                currentPage = parseInt(e.target.dataset.page);
                 render();
                 window.scrollTo(0, 0);
             });
-            li.appendChild(a);
-            list.appendChild(li);
-        }
-        nav.appendChild(list);
-        paginationContainer.appendChild(nav);
+        });
     }
 
     function showPopup(mod) {
@@ -113,40 +129,31 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join('');
 
         popupContent.innerHTML = `
-            <h1>${mod.title}</h1>
-            <p>${mod.description}</p>
-            <div class="download-section">
-                <h3>Downloads</h3>
-                ${downloadLinksHtml || '<p>No direct download links found.</p>'}
+            <div class="popup-blog-hero">
+                <div class="popup-hero-image" style="background-image:url(${mod.thumbnailUrl})"></div>
+                <div class="popup-hero-body">
+                    <h1>${mod.title}</h1>
+                </div>
+            </div>
+            <div class="popup-blog-content">
+                <p>${mod.description}</p>
+                <div class="popup-download-section">
+                    <h3>Downloads</h3>
+                    ${downloadLinksHtml || '<p>No direct download links found.</p>'}
+                </div>
             </div>
         `;
         popupOverlay.style.display = 'flex';
     }
 
     // --- Event Listeners ---
-    searchInput.addEventListener('input', () => {
-        const searchTerm = searchInput.value.toLowerCase();
-        filteredMods = allMods.filter(mod => 
-            mod.title.toLowerCase().includes(searchTerm) || 
-            mod.description.toLowerCase().includes(searchTerm)
-        );
-        currentPage = 1;
-        render();
+    [searchInput, gameSelect, versionSelect].forEach(el => el.addEventListener('input', applyFilters));
+    modListContainer.addEventListener('click', e => {
+        const modCard = e.target.closest('.blog-post');
+        if (modCard) showPopup(allMods[modCard.dataset.index]);
     });
-
-    modListContainer.addEventListener('click', (event) => {
-        const modCard = event.target.closest('.blog-post');
-        if (modCard) {
-            const modIndex = modCard.getAttribute('data-index');
-            const mod = allMods[modIndex];
-            showPopup(mod);
-        }
-    });
-
-    popupOverlay.addEventListener('click', (event) => {
-        if (event.target === popupOverlay) {
-            popupOverlay.style.display = 'none';
-        }
+    popupOverlay.addEventListener('click', e => {
+        if (e.target === popupOverlay) popupOverlay.style.display = 'none';
     });
 
     // --- Start the application ---
