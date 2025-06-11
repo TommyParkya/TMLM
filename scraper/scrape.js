@@ -5,47 +5,42 @@ import path from 'path';
 
 const BASE_URL = 'https://www.mixmods.com.br';
 const OUTPUT_PATH = path.join('..', 'data.json');
-const TRANSLATE_API = 'https://libretranslate.de/translate'; // Using a public LibreTranslate instance
+// Using a more reliable, free translation API
+const TRANSLATE_API = 'https://api.mymemory.translated.net/get';
 
-// --- New, reliable translation function ---
-async function translateText(text, from = 'pt', to = 'en') {
+async function translateText(text) {
     if (!text) return '';
     try {
-        const response = await axios.post(TRANSLATE_API, {
-            q: text,
-            source: from,
-            target: to,
-            format: 'text'
-        });
-        return response.data.translatedText || text; // Fallback to original text on failure
+        const response = await axios.get(TRANSLATE_API, { params: { q: text, langpair: 'pt|en' } });
+        return response.data.responseData.translatedText || text;
     } catch (error) {
-        console.warn(`  -> Translation failed for text snippet. Using original. Error: ${error.message}`);
-        return text; // Gracefully return original text if API fails
+        console.warn(`  -> Translation failed for text. Using original. Error: ${error.message}`);
+        return text;
     }
 }
 
 function detectGame($, article) {
-    let game = 'Unknown';
-    article.find('span.cat-links a').each((i, el) => {
-        const href = $(el).attr('href');
-        if (href.includes('/gta-sa/')) { game = 'SA'; return false; }
-        if (href.includes('/gta-vc/')) { game = 'VC'; return false; }
-        if (href.includes('/gta-iii/')) { game = 'III'; return false; }
-    });
-    return game;
+    const links = article.find('span.cat-links a');
+    for (let i = 0; i < links.length; i++) {
+        const href = $(links[i]).attr('href');
+        if (href.includes('/gta-sa/')) return 'SA';
+        if (href.includes('/gta-vc/')) return 'VC';
+        if (href.includes('/gta-iii/')) return 'III';
+    }
+    return 'Unknown';
 }
 
 function formatTitle(title, game) {
     const prefixes = { SA: '[SA]', VC: '[VC]', III: '[III]' };
     const prefix = prefixes[game];
-    if (prefix && !/\[(SA|VC|III)\]/i.test(title)) {
+    if (prefix && !title.trim().startsWith(prefix)) {
         return `${prefix} ${title}`;
     }
     return title;
 }
 
 async function main() {
-    console.log('--- Starting Robust MixMods Scraper v3 ---');
+    console.log('--- Starting Robust MixMods Scraper v4 ---');
     const allMods = [];
     let page = 1;
     const maxPages = 50;
@@ -87,7 +82,8 @@ async function main() {
                     const translatedDescription = await translateText(originalDescription);
 
                     const downloadLinks = [];
-                    let combinedTextForVersionCheck = originalTitle.toLowerCase();
+                    let combinedTextForVersionCheck = (originalTitle + ' ' + originalDescription).toLowerCase();
+                    
                     downloadElements.each((i, linkEl) => {
                         const link = $mod(linkEl);
                         const url = link.attr('href');
@@ -97,8 +93,8 @@ async function main() {
                             combinedTextForVersionCheck += ' ' + text.toLowerCase();
                         }
                     });
-                    
-                    combinedTextForVersionCheck += ' ' + originalDescription.toLowerCase();
+
+                    if (downloadLinks.length === 0) continue; // Final check
 
                     allMods.push({
                         title: translatedTitle,
