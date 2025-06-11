@@ -75,6 +75,7 @@ async function main() {
 
                     const uploadDate = article.find('time.entry-date').attr('datetime');
                     const thumbnailUrl = article.find('.post-image img').attr('src');
+                    const thumbnailUrl = article.find('.post-image img').attr('src') || 'https://files.facepunch.com/lewis/1b1311b1/gmod-header.jpg'; // FALLBACK IMAGE
                     let originalDescription = $mod('.entry-content p').first().text().trim();
 
                     // --- Auto-Translation Logic ---
