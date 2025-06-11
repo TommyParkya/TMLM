@@ -4,7 +4,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const BASE_URL = 'https://www.mixmods.com.br';
-const OUTPUT_PATH = path.join('..', 'public', 'data.json');
+const OUTPUT_PATH = path.join('..', 'data.json');
 
 async function main() {
     console.log('Starting MixMods scraper...');
