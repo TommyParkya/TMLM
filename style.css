@@ -76,3 +76,108 @@
 .lightbox-content .download-section a:hover {
     background-color: #0068cc;
 }
+
+/* --- ADD THESE NEW STYLES TO THE END OF YOUR CSS FILE --- */
+
+/* Clickable Mod Cards */
+.blog-post {
+    cursor: pointer;
+}
+
+/* Filter Selectors */
+.filter-select {
+    background-color: #fff;
+    border: 2px solid rgba(146, 148, 151, 0.2);
+    border-radius: 24px;
+    color: #0082ff;
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+    margin-right: 1rem;
+    cursor: pointer;
+}
+.filter-select:hover {
+    border-color: rgba(146, 148, 151, 0.7);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #0082ff;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spinAround 1s linear infinite;
+    margin: 5rem auto;
+}
+
+/* New Popup Styles (1:1 News Article) */
+#popup-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000; cursor: pointer; padding: 1rem;
+}
+#popup-content {
+    width: 100%;
+    max-width: 900px;
+    height: 90vh;
+    background-color: #eff4f8; /* Light background like the main page */
+    overflow-y: auto;
+    border-radius: 10px;
+    cursor: default;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    padding: 0; /* Remove padding to allow full-width hero */
+}
+.popup-blog-hero {
+    position: relative;
+    min-height: 40vh;
+    display: flex;
+    justify-content: flex-end;
+    flex-direction: column;
+}
+.popup-hero-image {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background-size: cover;
+    background-position: center;
+    mask-image: linear-gradient(rgba(0,0,0,1) 60%, transparent 100%);
+}
+.popup-hero-body {
+    position: relative; z-index: 1;
+    padding: 2rem;
+    background: linear-gradient(transparent, rgba(0,0,0,0.6) 80%);
+}
+.popup-hero-body h1 {
+    color: #fff; font-size: 3rem; line-height: 1.1;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    margin: 0;
+}
+.popup-blog-content {
+    padding: 2rem;
+}
+.popup-blog-content p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: #363636;
+}
+.popup-download-section {
+    margin-top: 2rem;
+}
+.popup-download-section h3 {
+    font-size: 1.5rem;
+    color: #000;
+    border-bottom: 2px solid #dde8f0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+.popup-download-section a {
+    display: block; background-color: #0082ff; color: #fff;
+    padding: 1rem; margin-top: 1rem; border-radius: 5px;
+    text-align: center; font-weight: bold; text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+.popup-download-section a:hover {
+    background-color: #0068cc;
+}
