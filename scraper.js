@@ -1,29 +1,38 @@
+// scraper.js
 const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs/promises');
 
 const log = (level, message) => console.log(`[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`);
 
-const GAME_TAGS = {
-    "GTA San Andreas": "[SA]",
-    "GTA Vice City": "[VC]",
-    "GTA III": "[III]"
+const GAME_TAGS_MAP = {
+    'gta-sao-andreas-mods': '[SA]',
+    'gta-vice-city-mods': '[VC]',
+    'gta-3-mods': '[III]'
 };
 
-const VERSION_TAGS = {
-    "PC": "[PC]",
-    "Mobile": "[Mobile]",
-    "Definitive Edition": "[DE]",
-    "PS2": "[PS2]"
+const VERSION_TAGS_MAP = {
+    'pc': '[PC]',
+    'mobile': '[Mobile]',
+    'the-definitive-edition-trilogy': '[DE]',
+    'ps2': '[PS2]'
 };
 
-function addTagToTitle(title, tagMap) {
-    for (const [key, tag] of Object.entries(tagMap)) {
-        if (title.toLowerCase().includes(key.toLowerCase()) && !title.includes(tag)) {
-            return `${tag} ${title}`;
+function getTagsFromCategories($, categoryLinks) {
+    const tags = { game: '', version: '' };
+    categoryLinks.each((i, el) => {
+        const href = $(el).attr('href');
+        if (!href) return;
+
+        const slug = href.split('/').filter(Boolean).pop();
+        if (GAME_TAGS_MAP[slug]) {
+            tags.game = GAME_TAGS_MAP[slug];
         }
-    }
-    return title;
+        if (VERSION_TAGS_MAP[slug]) {
+            tags.version = VERSION_TAGS_MAP[slug];
+        }
+    });
+    return tags;
 }
 
 async function scrapeMixmods() {
@@ -35,7 +44,7 @@ async function scrapeMixmods() {
 
     const session = axios.create({
         headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
         }
     });
 
@@ -55,14 +64,14 @@ async function scrapeMixmods() {
             }
 
             for (const articlePreview of validArticles) {
-                const modData = {};
                 const articleElement = $(articlePreview);
-                
+                const modData = {};
+
                 try {
                     const titleTag = articleElement.find('h2.entry-title a');
                     if (!titleTag.attr('href')) continue;
 
-                    let originalTitle = titleTag.text().trim();
+                    const originalTitle = titleTag.text().trim();
                     modData.modPageUrl = titleTag.attr('href');
                     modData.id = modData.modPageUrl.split('/').filter(Boolean).pop();
                     
@@ -71,51 +80,60 @@ async function scrapeMixmods() {
 
                     const thumbTag = articleElement.find('div.post-image a img');
                     modData.thumbnailUrl = thumbTag.attr('src') || "";
+                    
+                    const categoryLinks = articleElement.find('span.cat-links a');
+                    const tags = getTagsFromCategories($, categoryLinks);
+                    modData.gameTag = tags.game;
+                    modData.versionTag = tags.version;
+
+                    let newTitle = originalTitle;
+                    if (tags.game && !newTitle.includes(tags.game)) {
+                        newTitle = `${tags.game} ${newTitle}`;
+                    }
+                    if (tags.version && !newTitle.includes(tags.version)) {
+                        newTitle = `${tags.version} ${newTitle}`;
+                    }
+                    modData.title = newTitle;
 
                     log('info', `     Visiting mod page: ${modData.modPageUrl}`);
                     const modPageResponse = await session.get(modData.modPageUrl, { timeout: 30000 });
                     const $$ = cheerio.load(modPageResponse.data);
 
-                    const downloadButtonA = $$('.download_bt1');
+                    const downloadButtonA = $$('a.download_bt1');
                     const downloadButtonB = $$('a img[src*="download-baixar-4532137.png"]');
 
                     if (downloadButtonA.length === 0 && downloadButtonB.length === 0) {
                         log('warning', `     DISCARDED: ${originalTitle} (No download link)`);
                         continue;
                     }
-                    
+
                     const entryContent = $$('div.entry-content');
                     const firstP = entryContent.find('p').first();
                     modData.description = firstP.text().trim() || "No description found.";
 
                     modData.downloadLinks = [];
-                    $$('a.download_bt1').each((i, el) => {
+                    downloadButtonA.each((i, el) => {
+                        const link = $$(el);
                         modData.downloadLinks.push({
-                            displayText: $(el).text().trim(),
-                            url: $(el).attr('href')
+                            displayText: link.text().trim(),
+                            url: link.attr('href')
                         });
                     });
-
                     downloadButtonB.each((i, el) => {
-                        const link = $(el).closest('a');
+                        const link = $$(el).closest('a');
                         if (link.attr('href')) {
                             modData.downloadLinks.push({
-                                displayText: $(el).attr('alt') || 'Download',
+                                displayText: $$(el).attr('alt') || 'Download',
                                 url: link.attr('href')
                             });
                         }
                     });
 
-                    // Add game and version tags to title
-                    let newTitle = addTagToTitle(originalTitle, GAME_TAGS);
-                    newTitle = addTagToTitle(newTitle, VERSION_TAGS);
-                    modData.title = newTitle;
-
                     allMods.push(modData);
                     log('info', `     ADDED: ${modData.title}`);
 
                 } catch (articleError) {
-                    log('error', `    !! Error processing an article: ${articleError.message}`);
+                    log('error', `    !! Error processing article: ${articleError.message}`);
                 }
             }
             pageNum++;
@@ -123,7 +141,7 @@ async function scrapeMixmods() {
             if (error.response && error.response.status === 404) {
                 log('warning', "Reached end of pages (404 Not Found).");
             } else {
-                log('error', `Error fetching page ${listUrl}: ${error.message}`);
+                log('error', `Error fetching list page ${listUrl}: ${error.message}`);
             }
             keepScraping = false;
         }
