@@ -1,126 +1,128 @@
+// scraper.js
 const axios = require('axios');
 const cheerio = require('cheerio');
-const fs = require('fs');
+const fs = require('fs/promises');
 
-const BASE_URL = 'https://www.mixmods.com.br';
+// Basic logging to see progress in the console
+const log = (level, message) => console.log(`[${new Date().toISOString()}] [${level.toUpperCase()}] ${message}`);
 
-// Helper function to add prefixes like [SA] if they don't exist
-function ensureGamePrefix(title) {
-    if (title.match(/\[(SA|VC|III)\]/i)) {
-        return title;
-    }
-    if (title.toLowerCase().includes('san andreas')) return `[SA] ${title}`;
-    if (title.toLowerCase().includes('vice city')) return `[VC] ${title}`;
-    if (title.toLowerCase().includes('gta iii') || title.toLowerCase().includes('gta 3')) return `[III] ${title}`;
-    // Default to SA if no other game is mentioned, as it's the most common
-    return `[SA] ${title}`;
-}
-
-// Helper function to determine game and versions from title/description
-function getGameAndVersions(title, description) {
-    const lowerTitle = title.toLowerCase();
-    const lowerDesc = description.toLowerCase();
-    const content = `${lowerTitle} ${lowerDesc}`;
-
-    let game = 'GTA SA'; // Default
-    if (lowerTitle.includes('[vc]') || content.includes('vice city')) game = 'GTA VC';
-    if (lowerTitle.includes('[iii]') || content.includes('gta 3') || content.includes('gta iii')) game = 'GTA III';
-
-    const versions = new Set();
-    if (content.includes('pc')) versions.add('PC');
-    if (content.includes('mobile') || content.includes('android') || content.includes('ios')) versions.add('Mobile');
-    if (content.includes('definitive edition') || content.includes('de trilogy')) versions.add('DE');
-    if (content.includes('ps2')) versions.add('PS2');
-
-    // If no specific version is found, assume PC
-    if (versions.size === 0) versions.add('PC');
-
-    return { game, versions: Array.from(versions) };
-}
-
-
-async function scrapeAllMods() {
+async function scrapeMixmods() {
+    log('info', 'Starting MixMods scraper...');
+    const baseUrl = "https://www.mixmods.com.br";
     const allMods = [];
-    let hasMorePages = true;
     let pageNum = 1;
+    let keepScraping = true;
 
-    console.log('Starting scraper...');
+    // Use an axios instance for session-like behavior (e.g., cookies, headers)
+    const session = axios.create({
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+    });
 
-    while (hasMorePages) {
+    while (keepScraping) {
+        const listUrl = `${baseUrl}/page/${pageNum}`;
+        log('info', `Scraping list page: ${listUrl}`);
+
         try {
-            console.log(`Scraping page ${pageNum}...`);
-            const listPageUrl = `${BASE_URL}/page/${pageNum}`;
-            const { data: listPageHtml } = await axios.get(listPageUrl);
-            const $ = cheerio.load(listPageHtml);
+            const response = await session.get(listUrl, { timeout: 20000 });
+            const $ = cheerio.load(response.data);
 
-            // The key optimization: Select only articles that DO NOT have the "News" category.
-            const articles = $('article:not(:has(span.cat-links a[href*="/novidades/"]))');
+            // STAGE 1: The Combined Filter Selector (from Guide.txt)
+            const validArticles = $('article:not(:has(span.cat-links a[href*="/novidades/"]))');
 
-            if (articles.length === 0) {
-                hasMorePages = false;
-                console.log('No more articles found. Ending scrape.');
-                break;
+            if (validArticles.length === 0) {
+                log('info', `No more valid mod articles found on page ${pageNum}. Ending scrape.`);
+                keepScraping = false;
+                continue;
             }
 
-            for (const element of articles) {
-                const article = $(element);
-                const preliminaryData = {
-                    title: article.find('h2.entry-title a').text().trim(),
-                    modPageUrl: article.find('h2.entry-title a').attr('href'),
-                    uploadDate: article.find('time.entry-date').attr('datetime'),
-                    thumbnailUrl: article.find('div.post-image a img').attr('src')
-                };
-
-                if (!preliminaryData.modPageUrl) continue;
-
-                // Now, visit the mod page to check for download buttons and get description
-                const { data: modPageHtml } = await axios.get(preliminaryData.modPageUrl);
-                const $mod = cheerio.load(modPageHtml);
-
-                const hasDownloadButton1 = $mod('.download_bt1').length > 0;
-                const hasDownloadButton2 = $mod('a img[src*="download-baixar-4532137.png"]').length > 0;
-
-                if (!hasDownloadButton1 && !hasDownloadButton2) {
-                    continue; // Skip if no download button is found
-                }
-
-                // Scrape final details
-                const description = $mod('div.entry-content p').first().text().trim();
-                const downloadLinks = [];
-
-                $mod('.download_bt1 a, a:has(img[src*="download-baixar-4532137.png"])').each((i, linkEl) => {
-                    const link = $(linkEl);
-                    downloadLinks.push({
-                        displayText: link.text().trim() || 'Download',
-                        url: link.attr('href')
-                    });
-                });
+            // Using a for...of loop to handle async operations correctly inside the loop
+            for (const articlePreview of validArticles) {
+                const modData = {};
+                const articleElement = $(articlePreview);
                 
-                const { game, versions } = getGameAndVersions(preliminaryData.title, description);
+                try {
+                    // STAGE 2: Loop and Preliminary Data Extraction
+                    const titleTag = articleElement.find('h2.entry-title a');
+                    if (!titleTag.attr('href')) continue;
 
-                allMods.push({
-                    ...preliminaryData,
-                    title: ensureGamePrefix(preliminaryData.title),
-                    description,
-                    downloadLinks,
-                    game,
-                    versions
-                });
-                console.log(`  -> Found and processed: ${preliminaryData.title}`);
-            }
+                    modData.title = titleTag.text().trim();
+                    modData.modPageUrl = titleTag.attr('href');
+                    modData.id = modData.modPageUrl.split('/').filter(Boolean).pop();
+
+                    log('info', `  -> Found potential mod: ${modData.title}`);
+                    
+                    const dateTag = articleElement.find('time.entry-date.published');
+                    modData.uploadDate = dateTag.attr('datetime') || new Date().toISOString();
+
+                    const thumbTag = articleElement.find('div.post-image a img');
+                    modData.thumbnailUrl = thumbTag.attr('src') || "";
+
+                    // STAGE 3: The Final Download Filter
+                    log('info', `     Visiting mod page: ${modData.modPageUrl}`);
+                    const modPageResponse = await session.get(modData.modPageUrl, { timeout: 20000 });
+                    const $$ = cheerio.load(modPageResponse.data);
+
+                    const downloadButtonA = $$('.download_bt1');
+                    const downloadButtonB = $$('a img[src*="download-baixar-4532137.png"]');
+
+                    if (downloadButtonA.length === 0 && downloadButtonB.length === 0) {
+                        log('warning', `     SKIPPING - No valid download link found on page.`);
+                        continue;
+                    }
+                    
+                    log('info', `     SUCCESS - Valid download link found. Extracting final data.`);
+                    
+                    // STAGE 4: Final Data Extraction
+                    const entryContent = $$('div.entry-content');
+                    const firstP = entryContent.find('p').first();
+                    modData.description = firstP.text().trim() || "No description found.";
+
+                    modData.downloadLinks = [];
+                    $$('a.download_bt1').each((i, el) => {
+                        modData.downloadLinks.push({
+                            displayText: $(el).text().trim(),
+                            url: $(el).attr('href')
+                        });
+                    });
+
+                    downloadButtonB.each((i, el) => {
+                        const link = $(el).closest('a');
+                        if (link.attr('href')) {
+                            modData.downloadLinks.push({
+                                displayText: $(el).attr('alt') || 'Download',
+                                url: link.attr('href')
+                            });
+                        }
+                    });
+
+                    allMods.push(modData);
+
+                } catch (articleError) {
+                    log('error', `    !! Error processing an article: ${articleError.message}`);
+                }
+            } // end for loop
             pageNum++;
         } catch (error) {
             if (error.response && error.response.status === 404) {
-                console.log(`Page ${pageNum} not found. This is the end.`);
+                log('warning', "Reached end of pages (404 Not Found).");
             } else {
-                console.error(`Error scraping page ${pageNum}:`, error.message);
+                log('error', `Error fetching page ${listUrl}: ${error.message}`);
             }
-            hasMorePages = false;
+            keepScraping = false;
         }
     }
 
-    fs.writeFileSync('data.json', JSON.stringify(allMods, null, 2));
-    console.log(`Scraping complete. Found ${allMods.length} mods. Saved to data.json.`);
+    log('info', `\nScraping complete. Found ${allMods.length} valid mods.`);
+
+    try {
+        // STAGE 2.5: Final Output Generation
+        await fs.writeFile('data.json', JSON.stringify(allMods, null, 2), 'utf-8');
+        log('info', 'Successfully saved mod data to data.json');
+    } catch (error) {
+        log('error', `Failed to write to data.json: ${error.message}`);
+    }
 }
 
-scrapeAllMods();
+scrapeMixmods();

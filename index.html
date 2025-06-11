@@ -4,94 +4,56 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1">
     <title>MixMods Browser</title>
-    <link rel="icon" href="https://www.mixmods.com.br/wp-content/uploads/2022/10/mxmlogo200.png" type="image/x-icon">
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="styles.min.css" />
+    <meta name="theme-color" content="#0082FF">
 </head>
 <body>
 
 <header class="header">
     <div class="container">
         <a href="/" class="header-brand">
-            <img src="https://files.facepunch.com/lewis/1b1311b1/gmod-logo.svg" alt="Garry's Mod Style Logo"/>
+            <img src="https://files.facepunch.com/lewis/1b1311b1/gmod-logo.svg" alt="GMod Style Logo"/>
         </a>
         <div class="header-navigation">
-            <!-- The "Visit MixMods" button, replacing the original "Buy" button -->
-            <a href="https://www.mixmods.com.br/" class="button is-secondary mixmods-button" target="_blank">
-                <div class="logo-container">
-                    <img src="https://www.mixmods.com.br/wp-content/uploads/2022/10/mxmlogo200.png" alt="MixMods Logo"/>
-                </div>
-                <span>Visit MixMods</span>
-            </a>
+            <a class="is-active is-active-exact" href="#">Mods</a>
         </div>
     </div>
 </header>
 
 <div class="blog-list-header">
-    <div class="blog-hero-image" id="hero-image"></div>
+    <div class="blog-hero-image transition-header" style="background-image:url(https://files.facepunch.com/rubat/2025/May09-1347-HairyMudpuppy.png)"></div>
     <div class="blog-list-header-body">
         <div class="container">
-            <a href="#" class="blog-header-title">
-                <h1>MixMods Browser</h1>
-            </a>
-            <p>A lightweight, fast browser for MixMods, inspired by the GMod website.</p>
+            <h1>MixMods Static Browser</h1>
+            <p>A fast, static-site browser for MixMods. No more endless scrolling.</p>
         </div>
     </div>
 </div>
 
 <div class="section blog-list bg-light">
     <div class="container">
-        <!-- Filter Bar -->
         <div class="filter-bar">
-            <div class="tabs">
-                <select id="game-select" class="button is-medium is-outline">
-                    <option value="all">All Games</option>
-                    <option value="GTA SA">GTA San Andreas</option>
-                    <option value="GTA VC">GTA Vice City</option>
-                    <option value="GTA III">GTA III</option>
-                </select>
-                <select id="version-select" class="button is-medium is-outline">
-                    <option value="all">All Versions</option>
-                    <option value="PC">PC</option>
-                    <option value="Mobile">Mobile</option>
-                    <option value="DE">Definitive Edition</option>
-                    <option value="PS2">PS2</option>
-                </select>
-            </div>
-            <div class="search-box">
-                <input type="text" id="search-input" placeholder="Filter by name"/>
+             <div class="search-box">
+                <form onsubmit="return false;">
+                    <input type="text" id="search-input" name="search" required placeholder="Filter by mod name..."/>
+                </form>
             </div>
         </div>
 
-        <!-- Loading Animation -->
-        <div id="loading-spinner" class="loading-spinner"></div>
-
-        <!-- Mod List Container -->
-        <div class="blog-posts-container" id="mod-list-container">
-            <!-- Mods will be injected here by JavaScript -->
+        <div class="blog-posts-container">
+            <!-- This will be populated by script.js -->
+            <p style="color: #000; text-align: center; font-size: 2rem;">Loading mods...</p>
         </div>
-
-        <!-- Pagination Container -->
-        <div class="pagination-container" id="pagination-container">
-            <!-- Pagination will be injected here by JavaScript -->
-        </div>
-    </div>
-</div>
-
-<!-- Popup/Modal Structure -->
-<div id="popup-overlay" class="popup-overlay" style="display:none;">
-    <div id="popup-content" class="popup-content">
-        <button id="popup-close" class="popup-close">×</button>
-        <img id="popup-thumbnail" src="" alt="Mod Thumbnail"/>
-        <h1 id="popup-title"></h1>
-        <p id="popup-description"></p>
-        <div id="popup-downloads"></div>
     </div>
 </div>
 
 <footer class="section">
-    <!-- Footer content from GMod site can be kept for aesthetic -->
+    <div class="footer-copyright">
+        <div class="container"><div class="copy-flex"><span class="footer-copy-text">&copy; 2025 Facepunch Studios. All rights reserved.</span></div></div>
+    </div>
 </footer>
 
+<script>window.RequestToken = "STATIC_SITE";</script>
 <script src="script.js"></script>
 </body>
 </html>
