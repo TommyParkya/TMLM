@@ -1,3 +1,4 @@
+# .github/workflows/scrape_mods.yml
 name: Scrape Latest Mods
 
 on:
@@ -8,7 +9,6 @@ on:
 jobs:
   scrape:
     runs-on: ubuntu-latest
-    # Add a timeout for the entire job
     timeout-minutes: 1
 
     steps:
