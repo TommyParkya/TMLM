@@ -5,8 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
     const gameSelect = document.getElementById('game-select');
     const versionSelect = document.getElementById('version-select');
-    const popupOverlay = document.getElementById('popup-overlay');
-    const popupContent = document.getElementById('popup-content');
 
     // --- State ---
     let allMods = [];
@@ -36,7 +34,13 @@ document.addEventListener('DOMContentLoaded', () => {
         filteredMods = allMods.filter(mod => {
             const matchesSearch = mod.title.toLowerCase().includes(searchTerm) || mod.description.toLowerCase().includes(searchTerm);
             const matchesGame = selectedGame === 'ALL' || mod.game === selectedGame;
-            const matchesVersion = selectedVersion === 'ALL' || mod.version[selectedVersion.toLowerCase()];
+            
+            let matchesVersion = selectedVersion === 'ALL';
+            if (selectedVersion !== 'ALL') {
+                const versionKey = selectedVersion.toLowerCase();
+                matchesVersion = mod.version[versionKey];
+            }
+            
             return matchesSearch && matchesGame && matchesVersion;
         });
 
@@ -59,29 +63,49 @@ document.addEventListener('DOMContentLoaded', () => {
         const paginatedMods = filteredMods.slice((currentPage - 1) * modsPerPage, currentPage * modsPerPage);
 
         paginatedMods.forEach(mod => {
-            const globalIndex = allMods.findIndex(m => m.modPageUrl === mod.modPageUrl);
-            const postElement = document.createElement('div');
-            postElement.className = 'blog-post';
-            postElement.setAttribute('data-index', globalIndex);
-            
-            const uploadDate = new Date(mod.uploadDate).toLocaleDateString();
-            // Thumbnail Fix: Use a fallback if the URL is invalid
+            const uploadDate = new Date(mod.uploadDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
             const thumbnailUrl = mod.thumbnailUrl || 'https://files.facepunch.com/lewis/1b1311b1/gmod-header.jpg';
+            
+            const downloadLinksHtml = mod.downloadLinks.map(link => 
+                `<li><span>•</span><div class="entry"><a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.displayText}</a></div></li>`
+            ).join('');
 
-            postElement.innerHTML = `
-                <a class="blog-post-image">
-                    <img src="${thumbnailUrl}" alt="${mod.title}" loading="lazy">
-                </a>
-                <div class="blog-post-body">
-                    <div class="date">
-                        <span class="icon"><i>schedule</i></span>
-                        <span>${uploadDate}</span>
+            const modElement = document.createElement('div');
+            modElement.className = 'changes-container';
+            modElement.innerHTML = `
+                <div class="changes-sidebar">
+                    <div class="sidebar-section">
+                        <span class="subtitle">Mod Title</span>
+                        <a href="${mod.modPageUrl}" target="_blank" class="title">${mod.title}</a>
                     </div>
-                    <a><h1 class="title is-size-4">${mod.title}</h1></a>
-                    <p class="subtitle is-size-6">${mod.description}</p>
+                    <div class="sidebar-section">
+                        <a class="date">
+                            <span class="icon"><i>date_range</i></span>
+                            ${uploadDate}
+                        </a>
+                    </div>
+                    <div class="sidebar-section">
+                        <span class="subtitle">Game</span>
+                        <a class="title">${mod.game}</a>
+                    </div>
+                </div>
+                <div class="changes-body">
+                    <div style="margin-bottom: 2rem;">
+                        <img src="${thumbnailUrl}" alt="${mod.title}" style="width: 100%; border-radius: 10px; box-shadow: 0 5px 10px rgba(0,130,255,.2);">
+                    </div>
+                    <p style="color: #363636; line-height: 1.6;">${mod.description}</p>
+                    <div class="changes-row features">
+                        <div class="changes-row-header">
+                            <span class="icon"><i>add_circle</i></span>
+                            <h3>Downloads</h3>
+                        </div>
+                        <div class="changes-row-body">
+                            <ul>${downloadLinksHtml || '<li>No download links found.</li>'}</ul>
+                        </div>
+                    </div>
                 </div>
             `;
-            modListContainer.appendChild(postElement);
+            modListContainer.appendChild(modElement);
         });
     }
 
@@ -99,14 +123,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const nextButton = `<a class="pagination-next" ${currentPage === totalPages ? 'disabled' : ''}><i>arrow_right</i></a>`;
         
         let pageLinks = '';
-        // Ellipsis Pagination Logic
         const pagesToShow = [];
         if (totalPages <= 7) {
             for (let i = 1; i <= totalPages; i++) pagesToShow.push(i);
         } else {
             pagesToShow.push(1);
             if (currentPage > 3) pagesToShow.push('...');
-            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+            for (let i = Math.max(2, currentPage - 2); i <= Math.min(totalPages - 1, currentPage + 2); i++) {
                 pagesToShow.push(i);
             }
             if (currentPage < totalPages - 2) pagesToShow.push('...');
@@ -124,9 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
         nav.innerHTML = `${prevButton}${nextButton}<ul class="pagination-list">${pageLinks}</ul>`;
         paginationContainer.appendChild(nav);
 
-        // Add event listeners
-        nav.querySelector('.pagination-previous').addEventListener('click', () => { if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); }});
-        nav.querySelector('.pagination-next').addEventListener('click', () => { if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); }});
+        nav.querySelector('.pagination-previous').addEventListener('click', (e) => { e.preventDefault(); if (currentPage > 1) { currentPage--; render(); window.scrollTo(0, 0); }});
+        nav.querySelector('.pagination-next').addEventListener('click', (e) => { e.preventDefault(); if (currentPage < totalPages) { currentPage++; render(); window.scrollTo(0, 0); }});
         nav.querySelectorAll('.pagination-link').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -137,56 +159,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function showPopup(mod) {
-        const uploadDate = new Date(mod.uploadDate).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-        const downloadLinksHtml = mod.downloadLinks.map(link => 
-            `<li><span>•</span><div class="entry"><a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.displayText}</a></div></li>`
-        ).join('');
-
-        popupContent.innerHTML = `
-            <div class="popup-blog-hero">
-                <div class="popup-hero-image" style="background-image:url(${mod.thumbnailUrl})"></div>
-                <div class="popup-hero-body">
-                    <div class="tags">
-                        <div class="tag secondary">
-                            <span class="icon"><i>schedule</i></span> ${uploadDate}
-                        </div>
-                        <a class="tag outline update">${mod.game}</a>
-                    </div>
-                    <h1>${mod.title}</h1>
-                </div>
-            </div>
-            <div class="popup-blog-container">
-                <div class="popup-blog-section">
-                    <div class="content">
-                        <p>${mod.description}</p>
-                    </div>
-                </div>
-                <div class="popup-changes-container">
-                    <div class="popup-changes-row fixed">
-                        <div class="changes-row-header">
-                            <span class="icon"><i>handyman</i></span>
-                            <h3>Downloads</h3>
-                        </div>
-                        <div class="changes-row-body">
-                            <ul>${downloadLinksHtml || '<li>No direct download links found.</li>'}</ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        popupOverlay.style.display = 'flex';
-    }
-
     // --- Event Listeners ---
     [searchInput, gameSelect, versionSelect].forEach(el => el.addEventListener('input', applyFilters));
-    modListContainer.addEventListener('click', e => {
-        const modCard = e.target.closest('.blog-post');
-        if (modCard) showPopup(allMods[modCard.dataset.index]);
-    });
-    popupOverlay.addEventListener('click', e => {
-        if (e.target === popupOverlay) popupOverlay.style.display = 'none';
-    });
 
     // --- Start the application ---
     initialize();
