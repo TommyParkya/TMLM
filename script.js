@@ -1,5 +1,4 @@
-// --- UI Functions from original file (simplified for clarity) ---
-
+// --- UI Functions (Simplified) ---
 function UpdateBackgroundBasedOnScrollPosition() {
     if (!document.scrollingElement) return;
     const classes = document.getElementsByClassName("transition-header");
@@ -29,7 +28,7 @@ async function getMods() {
         return allModsData;
     } catch (error) {
         console.error("Failed to fetch data.json:", error);
-        return []; // Return empty array on failure
+        return [];
     }
 }
 
@@ -52,10 +51,7 @@ function createPagination(filteredModsCount, page) {
     if (page === 1) {
         prevButton.setAttribute('disabled', true);
     } else {
-        prevButton.onclick = () => {
-            currentPage--;
-            renderPage();
-        };
+        prevButton.onclick = () => { currentPage--; renderPage(); };
     }
 
     const nextButton = document.createElement('a');
@@ -64,10 +60,7 @@ function createPagination(filteredModsCount, page) {
     if (page === totalPages) {
         nextButton.setAttribute('disabled', true);
     } else {
-        nextButton.onclick = () => {
-            currentPage++;
-            renderPage();
-        };
+        nextButton.onclick = () => { currentPage++; renderPage(); };
     }
     
     const ul = document.createElement('ul');
@@ -80,12 +73,18 @@ function createPagination(filteredModsCount, page) {
         pageLinks.push(1);
         if (page > 3) pageLinks.push('...');
         
-        let start = Math.max(2, page - 1);
-        let end = Math.min(totalPages - 1, page + 1);
+        let start = Math.max(2, page - 2);
+        let end = Math.min(totalPages - 1, page + 2);
 
-        if (page === 1) end = 3;
-        if (page === totalPages) start = totalPages - 2;
-
+        if (page <= 3) {
+            start = 2;
+            end = 4;
+        }
+        if (page >= totalPages - 2) {
+            start = totalPages - 3;
+            end = totalPages - 1;
+        }
+        
         for (let i = start; i <= end; i++) pageLinks.push(i);
 
         if (page < totalPages - 2) pageLinks.push('...');
@@ -102,9 +101,13 @@ function createPagination(filteredModsCount, page) {
         } else {
             a.textContent = p;
             if (p === page) a.classList.add('is-current');
-            a.onclick = () => { currentPage = p; renderPage(); };
+            a.onclick = (e) => {
+                e.preventDefault();
+                currentPage = p;
+                renderPage();
+            };
+            li.appendChild(a);
         }
-        li.appendChild(a);
         ul.appendChild(li);
     });
 
@@ -147,6 +150,33 @@ function renderModCards(modsToRender) {
     });
 }
 
+function renderFeaturedHeader(mod) {
+    const header = document.getElementById('featured-mod-header');
+    if (!header || !mod) return;
+
+    const date = new Date(mod.uploadDate);
+    const displayDate = `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+
+    header.innerHTML = `
+        <div class="blog-hero-image transition-header" style="background-image:url(${mod.thumbnailUrl})"></div>
+        <div class="blog-list-header-body">
+            <div class="container">
+                <div class="tags">
+                    <div class="tag secondary">
+                        <span class="icon"><i>schedule</i></span>
+                        ${displayDate}
+                    </div>
+                </div>
+                <a href="mod.html?id=${mod.id}" class="blog-header-title">
+                    <h1>${mod.title}</h1>
+                </a>
+                <p>${mod.description}</p>
+                <a href="mod.html?id=${mod.id}" class="button is-secondary is-medium">Read more</a>
+            </div>
+        </div>
+    `;
+}
+
 async function renderPage() {
     const allMods = await getMods();
     const searchInput = document.getElementById('search-input').value.toLowerCase();
@@ -167,8 +197,16 @@ async function renderPage() {
 
     const paginatedMods = filteredMods.slice((currentPage - 1) * MODS_PER_PAGE, currentPage * MODS_PER_PAGE);
     
-    renderModCards(paginatedMods);
-    createPagination(filteredMods.length, currentPage);
+    if (currentPage === 1 && searchInput === '' && gameFilter === 'all' && versionFilter === 'all' && filteredMods.length > 0) {
+        renderFeaturedHeader(filteredMods[0]);
+        renderModCards(paginatedMods.slice(1)); // Don't show the featured one in the list below
+        createPagination(filteredMods.length -1, currentPage)
+    } else {
+        document.getElementById('featured-mod-header').innerHTML = ''; // Clear featured header if filtering/paging
+        renderModCards(paginatedMods);
+        createPagination(filteredMods.length, currentPage);
+    }
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -201,10 +239,11 @@ async function loadModPage() {
         document.title = `${mod.title} - Mod Details`;
         document.getElementById('mod-hero-image').style.backgroundImage = `url(${mod.thumbnailUrl})`;
         const date = new Date(mod.uploadDate);
-        const displayDate = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        const displayDate = date.toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
         document.querySelector('#mod-date span').textContent = displayDate;
         document.getElementById('mod-title').textContent = mod.title;
         document.getElementById('mod-description-summary').textContent = mod.description;
+        document.getElementById('mod-description').textContent = mod.description;
         
         const downloadsContainer = document.getElementById('mod-downloads');
         downloadsContainer.innerHTML = '';
@@ -219,7 +258,7 @@ async function loadModPage() {
                 downloadsContainer.appendChild(button);
             });
         } else {
-            downloadsContainer.innerHTML = '<p style="color:white; text-shadow:1px 1px 2px black;">No download links were found for this mod.</p>';
+            downloadsContainer.innerHTML = '<p style="color:#000;">No download links were found for this mod.</p>';
         }
     } catch (error) {
         console.error('Failed to load mod details:', error);
@@ -229,9 +268,9 @@ async function loadModPage() {
 
 function initializeSite() {
     const path = window.location.pathname.split('/').pop();
-    if (path === '' || path === 'index.html') {
+    if (path === '' || path === 'index.html' || path.startsWith('index.html?')) {
         loadIndexPage();
-    } else if (path === 'mod.html') {
+    } else if (path === 'mod.html' || path.startsWith('mod.html?')) {
         loadModPage();
     }
     UpdateBackgroundBasedOnScrollPosition();
