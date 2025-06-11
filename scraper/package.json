@@ -1,7 +1,7 @@
 {
   "name": "mixmods-scraper",
   "version": "1.0.0",
-  "description": "Scrapes MixMods for a static site.",
+  "description": "Scrapes mod data from MixMods.",
   "main": "scrape.js",
   "type": "module",
   "scripts": {
