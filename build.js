@@ -4,8 +4,6 @@ const cheerio = require('cheerio');
 
 // --- CONFIGURATION ---
 const MODS_PER_PAGE = 9;
-// This will dynamically get the repository name like "tommyparkya/TMLM" from the GitHub Actions environment.
-// If running locally, it will default to an empty path.
 const repo = process.env.GITHUB_REPOSITORY || '';
 const basePath = repo ? `/${repo.split('/')[1]}` : '';
 
@@ -24,7 +22,7 @@ function getModSlug(modPageUrl) {
 
 // Helper function to fix all paths for deployment
 function fixPaths($, basePath) {
-    // Fix CSS and JS links
+    // --- FIX: Correctly point to the CSS and JS files inside the docs folder ---
     $('link[rel="stylesheet"]').attr('href', `${basePath}/css/styles.css`);
     $('script[src]').attr('src', `${basePath}/js/script.js`);
 
@@ -52,9 +50,15 @@ async function buildSite() {
     await fs.mkdir(path.join(DOCS_PATH, 'mods'), { recursive: true });
     await fs.mkdir(path.join(DOCS_PATH, 'page'), { recursive: true });
 
-    await fs.cp(path.join(SRC_PATH, 'css'), path.join(DOCS_PATH, 'css'), { recursive: true });
-    await fs.cp(path.join(SRC_PATH, 'js'), path.join(DOCS_PATH, 'js'), { recursive: true });
-    console.log('Copied static assets.');
+    // --- FIX: Copy the contents of src/css and src/js directly into docs/css and docs/js ---
+    try {
+        await fs.cp(path.join(SRC_PATH, 'css'), path.join(DOCS_PATH, 'css'), { recursive: true });
+        await fs.cp(path.join(SRC_PATH, 'js'), path.join(DOCS_PATH, 'js'), { recursive: true });
+        console.log('Copied static assets correctly.');
+    } catch (error) {
+        console.error("Error copying static assets. Ensure 'src/css/styles.css' and 'src/js/script.js' exist.", error);
+        process.exit(1);
+    }
 
     const data = JSON.parse(await fs.readFile('data.json', 'utf-8'));
     const featured = JSON.parse(await fs.readFile('featured.json', 'utf-8'));
