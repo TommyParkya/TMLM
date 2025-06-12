@@ -3,7 +3,7 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 
 const BASE_URL = 'https://www.mixmods.com.br';
-const MAX_PAGES = 10; // Set to a low number for testing
+const MAX_PAGES = 10;
 
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
@@ -45,7 +45,7 @@ async function scrapeMixMods() {
                     const response = await axios.get(modPageUrl, { headers });
                     modPageHtml = response.data;
                 } catch (modPageError) {
-                    console.log(`[SKIPPED] ${rawTitle} - Reason: Failed to fetch mod page ${modPageUrl}`);
+                    console.log(`[SKIPPED] ${rawTitle} - Reason: Failed to fetch mod page`);
                     continue;
                 }
 
@@ -61,33 +61,27 @@ async function scrapeMixMods() {
                 downloadElements.each((_, el) => {
                     const $el = $$(el);
                     const url = $el.attr('href');
-                    let displayText = $el.text().trim();
-
-                    if (!displayText) {
-                        const img = $el.find('img');
-                        if (img.length) {
-                            displayText = img.attr('alt').trim();
-                        }
-                    }
-                    
-                    // --- FIX: Clean up the button text ---
-                    // If the text is empty or looks like a filename, default to "Download".
-                    if (!displayText || displayText.includes('download-baixar')) {
-                        displayText = 'Download';
-                    }
-
                     if (url) {
-                        downloadLinks.push({ displayText, url });
+                        downloadLinks.push({ url });
                     }
                 });
                 
                 if (downloadLinks.length === 0) {
-                     console.log(`[SKIPPED] ${rawTitle} - Reason: Found download buttons but could not extract links.`);
+                     console.log(`[SKIPPED] ${rawTitle} - Reason: Could not extract links.`);
                      continue;
                 }
 
                 const description = $$('div.entry-content > p').first().text().trim();
+                
+                // --- Game and Platform Tagging ---
                 let gameTag = '';
+                let platform = 'PC';
+                const lowerTitle = rawTitle.toLowerCase();
+
+                if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) platform = 'Mobile';
+                else if (lowerTitle.includes('ps2')) platform = 'PS2';
+                else if (lowerTitle.includes('definitive edition') || lowerTitle.includes(' de ')) platform = 'DE';
+
                 const categoryLinks = $article.find('span.cat-links a');
                 categoryLinks.each((_, link) => {
                     const href = $(link).attr('href');
@@ -97,22 +91,17 @@ async function scrapeMixMods() {
                 });
 
                 if (!gameTag) {
-                    const lowerTitle = rawTitle.toLowerCase();
                     if (lowerTitle.includes('san andreas')) gameTag = '[SA]';
                     else if (lowerTitle.includes('vice city')) gameTag = '[VC]';
                     else if (lowerTitle.includes('gta 3') || lowerTitle.includes('gta iii')) gameTag = '[III]';
                 }
 
                 const finalTitle = gameTag ? `${gameTag} ${rawTitle}` : rawTitle;
-                allMods.push({ title: finalTitle, modPageUrl, thumbnailUrl, description, uploadDate: new Date(uploadDate).toISOString(), downloadLinks });
-                console.log(`[ADDED] ${finalTitle}`);
+                allMods.push({ title: finalTitle, platform, modPageUrl, thumbnailUrl, description, uploadDate: new Date(uploadDate).toISOString(), downloadLinks });
+                console.log(`[ADDED] ${finalTitle} (${platform})`);
             }
         } catch (error) {
-            if (error.response && error.response.status === 404) {
-                console.log(`Page ${i} returned 404. Scraper has reached the end.`);
-            } else {
-                console.error(`An error occurred on page ${i}:`, error.message);
-            }
+            console.error(`An error occurred on page ${i}:`, error.message);
             break;
         }
     }
@@ -121,7 +110,7 @@ async function scrapeMixMods() {
         fs.writeFileSync('data.json', JSON.stringify(allMods, null, 2));
         console.log(`\nScraping complete. Found ${allMods.length} mods. Data saved to data.json.`);
     } else {
-        console.log('\nScraping finished, but no mods were collected. The data.json file was not created.');
+        console.log('\nScraping finished, but no mods were collected.');
     }
 }
 
