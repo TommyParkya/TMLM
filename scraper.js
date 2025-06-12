@@ -1,9 +1,11 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs');
+const path = require('path');
 
 const BASE_URL = 'https://www.mixmods.com.br';
 const MAX_PAGES = 10;
+const OUTPUT_FILE = path.join(__dirname, 'data.json');
 
 const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
@@ -14,20 +16,25 @@ const categoryBlacklist = new Set([
 ]);
 
 async function scrapeMixMods() {
+    console.log('Starting scraper...');
     const allMods = [];
     const processedUrls = new Set();
 
     for (let i = 1; i <= MAX_PAGES; i++) {
         const pageUrl = `${BASE_URL}/page/${i}`;
+        console.log(`\n--- Scraping Page ${i}: ${pageUrl} ---`);
+
         try {
             const { data: pageHtml } = await axios.get(pageUrl, { headers });
             const $ = cheerio.load(pageHtml);
             const articles = $('article');
 
-            if (articles.length === 0) break;
+            if (articles.length === 0) {
+                console.log('No more articles found on this page. Ending scrape.');
+                break;
+            }
 
             for (const article of articles) {
-                const $article = $(article);
                 let isBlacklisted = false;
                 $article.find('span.cat-links a').each((_, link) => {
                     const href = $(link).attr('href');
@@ -77,13 +84,9 @@ async function scrapeMixMods() {
                 let platform = 'PC';
                 const lowerTitle = rawTitle.toLowerCase();
 
-                if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) {
-                    platform = 'Mobile';
-                } else if (lowerTitle.includes('ps2')) {
-                    platform = 'PS2';
-                } else if (lowerTitle.includes('definitive edition') || (lowerTitle.includes(' de ') && !lowerTitle.includes(' de '))) {
-                    platform = 'DE';
-                }
+                if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) platform = 'Mobile';
+                else if (lowerTitle.includes('ps2')) platform = 'PS2';
+                else if (lowerTitle.includes('definitive edition') || (lowerTitle.includes(' de ') && !lowerTitle.includes(' de '))) platform = 'DE';
 
                 $article.find('span.cat-links a').each((_, link) => {
                     const href = $(link).attr('href');
@@ -100,13 +103,22 @@ async function scrapeMixMods() {
 
                 const finalTitle = gameTag ? `${gameTag} ${rawTitle}` : rawTitle;
                 allMods.push({ title: finalTitle, platform, modPageUrl, thumbnailUrl, description, uploadDate: new Date(uploadDate).toISOString(), downloadLinks });
+                console.log(`[ADDED] ${finalTitle}`);
             }
         } catch (error) {
+            console.error(`FATAL ERROR: Could not fetch page ${i}. The website may be blocking requests.`);
+            console.error('Error details:', error.message);
             break;
         }
     }
 
-    fs.writeFileSync('data.json', JSON.stringify(allMods, null, 2));
+    if (allMods.length > 0) {
+        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allMods, null, 2));
+        console.log(`\nScraping complete. Found ${allMods.length} mods. Data saved to ${OUTPUT_FILE}.`);
+    } else {
+        console.log('\nScraping finished, but no mods were collected. data.json was not created.');
+        process.exit(1);
+    }
 }
 
 scrapeMixMods();
