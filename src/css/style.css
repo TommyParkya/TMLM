@@ -76,3 +76,8 @@
         justify-content: center;
     }
 }
+
+/* Custom Hover Effect for Header Button Logo */
+header .header-navigation a:hover img {
+    filter: brightness(0) invert(1) !important;
+}
