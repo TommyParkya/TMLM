@@ -4,9 +4,12 @@ const path = require('path');
 async function buildSite() {
     console.log('Starting build process...');
 
+    // Use __dirname to build absolute paths from the script's location,
+    // ensuring it works correctly inside the GitHub runner.
     const CWD = __dirname;
     const PUBLIC_PATH = path.join(CWD, 'public');
-    const SRC_PATH = path.join(CWD, 'src');
+    // --- THE FIX: Use the correct folder name 'src.' ---
+    const SRC_PATH = path.join(CWD, 'src.');
     const DATA_FILE = path.join(CWD, 'data.json');
     const MANUAL_DATA_FILE = path.join(CWD, 'manual_data.json');
 
@@ -14,13 +17,15 @@ async function buildSite() {
     await fs.mkdir(PUBLIC_PATH, { recursive: true });
 
     try {
+        // --- THE FIX: Use the correct folder name 'src.' ---
         await fs.cp(path.join(SRC_PATH, 'assets'), path.join(PUBLIC_PATH, 'assets'), { recursive: true });
         console.log('Copied static assets.');
     } catch (error) {
-        console.log("Warning: 'src/assets' folder not found. Site will build without images.");
+        console.log("Warning: 'src./assets' folder not found. Site will build without images.");
     }
 
     console.log('Loading data and assets from disk...');
+    // --- THE FIX: Use the correct folder name 'src.' ---
     const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'main.css'), 'utf-8');
     const jsContent = await fs.readFile(path.join(SRC_PATH, 'js', 'app.js'), 'utf-8');
     const modData = JSON.parse(await fs.readFile(DATA_FILE, 'utf-8'));
