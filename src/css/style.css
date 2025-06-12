@@ -81,3 +81,54 @@
 header .header-navigation a:hover img {
     filter: brightness(0) invert(1) !important;
 }
+/* Lightbox/Modal Styles */
+#lightbox-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    cursor: pointer;
+}
+#lightbox-overlay:not(.hidden) {
+    opacity: 1;
+}
+#lightbox-overlay.hidden {
+    pointer-events: none;
+}
+#lightbox-content {
+    position: relative;
+    cursor: default;
+    max-width: 900px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    background-color: #1f1f1f; /* Dark background for content */
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+#lightbox-overlay:not(.hidden) #lightbox-content {
+    transform: scale(1);
+}
+/* Custom scrollbar for lightbox */
+#lightbox-content::-webkit-scrollbar {
+    width: 8px;
+}
+#lightbox-content::-webkit-scrollbar-track {
+    background: #2a2a2a;
+}
+#lightbox-content::-webkit-scrollbar-thumb {
+    background-color: #0082ff;
+    border-radius: 4px;
+}
