@@ -14,15 +14,15 @@ async function buildSite() {
         await fs.cp(path.join(SRC_PATH, 'assets'), path.join(PUBLIC_PATH, 'assets'), { recursive: true });
         console.log('Copied static assets.');
     } catch (error) {
-        console.log("Warning: 'src/assets' folder not found or is empty. Site will build without images.");
+        console.log("Warning: 'src/assets' folder not found. Site will build without images.");
     }
 
-    console.log('Loading data and assets into memory...');
+    console.log('Loading data and assets from disk...');
     const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'main.css'), 'utf-8');
     const jsContent = await fs.readFile(path.join(SRC_PATH, 'js', 'app.js'), 'utf-8');
-    const modData = JSON.parse(await fs.readFile('data.json', 'utf-8'));
-    const manualData = JSON.parse(await fs.readFile('manual_data.json', 'utf-8'));
-    console.log('All data loaded.');
+    const modData = JSON.parse(await fs.readFile(path.join(__dirname, 'data.json'), 'utf-8'));
+    const manualData = JSON.parse(await fs.readFile(path.join(__dirname, 'manual_data.json'), 'utf-8'));
+    console.log('All data loaded successfully.');
 
     const htmlShell = `
 <!DOCTYPE html>
@@ -43,50 +43,30 @@ async function buildSite() {
             <a href="#" class="logo">MixMods Browser</a>
             <div class="header-actions">
                 <div id="theme-switch" class="theme-switch" aria-label="Toggle dark mode" role="button">
-                    <div class="theme-switch-track">
-                        <div class="theme-switch-thumb"></div>
-                    </div>
+                    <div class="theme-switch-track"><div class="theme-switch-thumb"></div></div>
                 </div>
             </div>
         </div>
     </header>
-
     <main class="container">
         <div class="filter-bar">
             <input type="search" id="search-input" placeholder="Filter by name...">
-            <select id="platform-filter" aria-label="Filter by Platform">
-                <option value="all">All Platforms</option>
-                <option value="PC">PC</option>
-                <option value="Mobile">Mobile</option>
-                <option value="DE">Definitive Edition</option>
-                <option value="PS2">PS2</option>
-            </select>
-            <select id="game-filter" aria-label="Filter by Game">
-                <option value="all">All Games</option>
-                <option value="SA">GTA SA</option>
-                <option value="VC">GTA VC</option>
-                <option value="III">GTA III</option>
-            </select>
-            <select id="sort-control" aria-label="Sort by">
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-            </select>
+            <select id="platform-filter" aria-label="Filter by Platform"><option value="all">All Platforms</option><option value="PC">PC</option><option value="Mobile">Mobile</option><option value="DE">Definitive Edition</option><option value="PS2">PS2</option></select>
+            <select id="game-filter" aria-label="Filter by Game"><option value="all">All Games</option><option value="SA">GTA SA</option><option value="VC">GTA VC</option><option value="III">GTA III</option></select>
+            <select id="sort-control" aria-label="Sort by"><option value="newest">Newest First</option><option value="oldest">Oldest First</option></select>
         </div>
         <div id="mod-grid" class="mod-grid"></div>
         <div id="pagination" class="pagination"></div>
     </main>
-
     <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
         <div id="modal-content" class="modal-content" role="document"></div>
     </div>
-
     <script id="mod-data" type="application/json">${JSON.stringify(modData)}</script>
     <script id="featured-data" type="application/json">${JSON.stringify(manualData.featured)}</script>
     <script id="changelog-data" type="application/json">${JSON.stringify(manualData.changelogs)}</script>
     <script>${jsContent}</script>
 </body>
-</html>
-    `;
+</html>`;
 
     await fs.writeFile(path.join(PUBLIC_PATH, 'index.html'), htmlShell);
     console.log('Build complete. Generated public/index.html.');
