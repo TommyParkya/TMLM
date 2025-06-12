@@ -19,10 +19,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     
     runs-on: ubuntu-latest
+    
+    # --- THE FIX: This forces all 'run' commands to execute inside the correct subfolder ---
+    defaults:
+      run:
+        working-directory: ./TMLM
+
     steps:
       - name: Checkout repository
-        # This is the standard, correct way. It places your files in the root.
         uses: actions/checkout@v4
+        with:
+          # This creates the TMLM directory that all subsequent steps will work inside of
+          path: TMLM
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -30,22 +38,19 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        # This will now find package.json in the root.
         run: npm install
 
       - name: Run scraper
-        # This will now run from the correct directory.
         run: node scraper.js
 
       - name: Run build script
-        # This will now find all src files and data.json.
         run: node build.js
 
       - name: Upload artifact for deployment
         uses: actions/upload-pages-artifact@v3
         with:
-          # This correctly points to the 'public' folder created by build.js.
-          path: ./public
+          # The path is now relative to the root of the workspace
+          path: ./TMLM/public
 
       - name: Deploy to GitHub Pages
         id: deployment
