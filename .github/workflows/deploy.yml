@@ -21,8 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        # This is the standard, correct checkout. It places your files in the root.
-        # There are no 'path' or 'working-directory' directives.
         uses: actions/checkout@v4
 
       - name: Set up Node.js
@@ -31,21 +29,17 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        # This will run in the root, where package.json is.
         run: npm install
 
       - name: Run scraper
-        # This will run in the root.
         run: node scraper.js
 
       - name: Run build script
-        # This will run in the root and find all src files and data.json.
         run: node build.js
 
       - name: Upload artifact for deployment
         uses: actions/upload-pages-artifact@v3
         with:
-          # This correctly points to the 'public' folder created by build.js.
           path: ./public
 
       - name: Deploy to GitHub Pages
