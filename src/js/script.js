@@ -13,25 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    // --- Setup Filter Controls ---
     filterControlsContainer.innerHTML = `
-        <select id="platform-filter" aria-label="Platform">
-            <option value="all">All Platforms</option>
-            <option value="PC">PC</option>
-            <option value="Mobile">Mobile</option>
-            <option value="DE">Definitive Edition</option>
-            <option value="PS2">PS2</option>
-        </select>
-        <select id="game-filter" aria-label="Game">
-            <option value="all">All Games</option>
-            <option value="SA">GTA SA</option>
-            <option value="VC">GTA VC</option>
-            <option value="III">GTA III</option>
-        </select>
-        <select id="sort-control" aria-label="Sort By">
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-        </select>
+        <select id="platform-filter" aria-label="Platform"><option value="all">All Platforms</option><option value="PC">PC</option><option value="Mobile">Mobile</option><option value="DE">Definitive Edition</option><option value="PS2">PS2</option></select>
+        <select id="game-filter" aria-label="Game"><option value="all">All Games</option><option value="SA">GTA SA</option><option value="VC">GTA VC</option><option value="III">GTA III</option></select>
+        <select id="sort-control" aria-label="Sort By"><option value="newest">Newest First</option><option value="oldest">Oldest First</option></select>
     `;
 
     const platformFilter = document.getElementById('platform-filter');
@@ -46,10 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
         catch (e) { return 'mod-' + Math.random().toString(36).substring(2, 9); }
     }
 
+    function formatDate(dateString) {
+        return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
+    }
+
     function renderMods(modsToRender) {
         postContainer.innerHTML = '';
         if (modsToRender.length === 0) {
-            postContainer.innerHTML = '<p style="color: #000; grid-column: 1 / -1; text-align: center; font-size: 1.5rem;">No mods found matching your criteria.</p>';
+            postContainer.innerHTML = '<p style="color: #000; grid-column: 1 / -1; text-align: center; font-size: 1.5rem;">None Found.</p>';
             return;
         }
 
@@ -62,20 +51,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const post = document.createElement('div');
             post.className = 'blog-post';
-            // FIX: Ensure icon is always rendered correctly
             post.innerHTML = `
                 <a href="${modPagePath}" class="blog-post-image">
-                    <img src="${mod.thumbnailUrl}" alt="Mod Thumbnail">
+                    <img src="${mod.thumbnailUrl}" alt="Mod Thumbnail" loading="lazy" decoding="async">
                     <div class="dev-tags">${isFeatured ? '<img src="assets/Workshop_FeatureTag_new.png" alt="Featured" style="position: absolute; top: -5px; left: -5px; width: 64px; height: 64px; z-index: 10;">' : ''}</div>
                 </a>
                 <div class="blog-post-body">
-                    <div class="date">
-                        <span class="icon"><i>schedule</i></span>
-                        <span>${new Date(mod.uploadDate).toDateString()}</span>
-                    </div>
-                    <a href="${modPagePath}">
-                        <h1 class="title is-size-4">${mod.title}</h1>
-                    </a>
+                    <div class="date"><span class="icon"><i>schedule</i></span><span>${formatDate(mod.uploadDate)}</span></div>
+                    <a href="${modPagePath}"><h1 class="title is-size-4">${mod.title}</h1></a>
                     <p class="subtitle is-size-6">${mod.description}</p>
                 </div>
             `;
@@ -92,12 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const urlParams = new URLSearchParams(currentFilters).toString();
         
         let paginationHTML = `<nav class="pagination" role="navigation" aria-label="pagination">
-            <a class="pagination-previous" ${currentPage === 1 ? 'disabled' : ''} href="?page=${currentPage - 1}&${urlParams}"><i>arrow_left</i></a>
-            <a class="pagination-next" ${currentPage === totalPages ? 'disabled' : ''} href="?page=${currentPage + 1}&${urlParams}"><i>arrow_right</i></a>
+            <a class="pagination-previous" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}"><i>arrow_left</i></a>
+            <a class="pagination-next" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}"><i>arrow_right</i></a>
             <ul class="pagination-list">`;
 
         for (let i = 1; i <= totalPages; i++) {
-            paginationHTML += `<li><a class="pagination-link ${i === currentPage ? 'is-current' : ''}" href="?page=${i}&${urlParams}">${i}</a></li>`;
+            paginationHTML += `<li><a class="pagination-link ${i === currentPage ? 'is-current' : ''}" data-page="${i}">${i}</a></li>`;
         }
 
         paginationHTML += `</ul></nav>`;
@@ -127,9 +110,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return currentFilters.sort === 'newest' ? dateB - dateA : dateA - dateB;
         });
 
-        const urlParams = new URLSearchParams(window.location.search);
-        currentPage = parseInt(urlParams.get('page')) || 1;
-
         const startIndex = (currentPage - 1) * MODS_PER_PAGE;
         const modsForPage = filteredMods.slice(startIndex, startIndex + MODS_PER_PAGE);
 
@@ -138,21 +118,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (preserveScroll) {
             window.scrollTo(0, scrollY);
+        } else {
+            window.scrollTo(0, 0);
         }
     }
 
-    function handleFilterChange(e) {
-        // Don't prevent default, let the URL change
-        updateView(true); // Preserve scroll on filter change
-    }
-    
-    // Use a single event listener on the container for efficiency
     paginationContainer.addEventListener('click', e => {
-        if (e.target.tagName === 'A' && e.target.closest('.pagination')) {
-            e.preventDefault();
-            const url = new URL(e.target.href);
-            window.history.pushState({}, '', url.search);
-            updateView(); // Scroll to top on page change
+        const target = e.target.closest('a[data-page]');
+        if (target && !target.hasAttribute('disabled')) {
+            currentPage = parseInt(target.dataset.page);
+            updateView();
         }
     });
 
@@ -160,17 +135,16 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.addEventListener('input', () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            window.history.pushState({}, '', '?page=1');
+            currentPage = 1;
             updateView(true);
         }, 300);
     });
     
     searchInput.closest('form').addEventListener('submit', e => e.preventDefault());
-    platformFilter.addEventListener('change', () => { window.history.pushState({}, '', '?page=1'); updateView(true); });
-    gameFilter.addEventListener('change', () => { window.history.pushState({}, '', '?page=1'); updateView(true); });
-    sortControl.addEventListener('change', () => { window.history.pushState({}, '', '?page=1'); updateView(true); });
+    platformFilter.addEventListener('change', () => { currentPage = 1; updateView(true); });
+    gameFilter.addEventListener('change', () => { currentPage = 1; updateView(true); });
+    sortControl.addEventListener('change', () => { currentPage = 1; updateView(true); });
 
-    // Initial load
     updateView();
     if(loader) loader.classList.add('hidden');
 });
