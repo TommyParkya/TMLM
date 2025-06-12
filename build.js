@@ -4,12 +4,11 @@ const path = require('path');
 async function buildSite() {
     console.log('Starting build process...');
 
-    // Use path.resolve to create absolute paths from the script's location
-    const CWD = __dirname;
-    const PUBLIC_PATH = path.resolve(CWD, 'public');
-    const SRC_PATH = path.resolve(CWD, 'src');
-    const DATA_FILE = path.resolve(CWD, 'data.json');
-    const MANUAL_DATA_FILE = path.resolve(CWD, 'manual_data.json');
+    const CWD = process.cwd();
+    const PUBLIC_PATH = path.join(CWD, 'public');
+    const SRC_PATH = path.join(CWD, 'src');
+    const DATA_FILE = path.join(CWD, 'data.json');
+    const MANUAL_DATA_FILE = path.join(CWD, 'manual_data.json');
 
     await fs.rm(PUBLIC_PATH, { recursive: true, force: true });
     await fs.mkdir(PUBLIC_PATH, { recursive: true });
