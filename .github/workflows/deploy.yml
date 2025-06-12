@@ -22,20 +22,28 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # This ensures the code is checked out into a predictable 'TMLM' directory
+          path: TMLM
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # --- FIX: Removed the 'cache' line to prevent lock file errors ---
 
       - name: Install dependencies
+        # --- THE FIX: Force this command to run inside the TMLM folder ---
+        working-directory: ./TMLM
         run: npm install
 
       - name: Run scraper
+        # --- THE FIX: Force this command to run inside the TMLM folder ---
+        working-directory: ./TMLM
         run: node scraper.js
 
       - name: Run build script
+        # --- THE FIX: Force this command to run inside the TMLM folder ---
+        working-directory: ./TMLM
         run: node build.js
 
       - name: Setup Pages
@@ -44,7 +52,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './public'
+          # --- THE FIX: Tell the uploader where to find the 'public' folder ---
+          path: ./TMLM/public
 
       - name: Deploy to GitHub Pages
         id: deployment
