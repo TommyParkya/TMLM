@@ -37,25 +37,22 @@ async function scrapeMixMods() {
                 const titleElement = $article.find('h2.entry-title a');
                 const rawTitle = titleElement.text().trim();
                 
-                // --- THE FIX: Two-stage whitelist check ---
                 let isWhitelisted = false;
-                
-                // Stage 1: Check category links first.
+                let gameTagFromCategory = null;
+
                 $article.find('span.cat-links a').each((_, link) => {
                     const href = $(link).attr('href');
                     for (const allowed of categoryWhitelist) {
                         if (href.includes(allowed)) {
                             isWhitelisted = true;
+                            gameTagFromCategory = allowed.replace(/\//g, '').toUpperCase();
                             return false;
                         }
                     }
                 });
 
-                // Stage 2: If categories didn't match, check the title as a fallback.
-                if (!isWhitelisted) {
-                    if (rawTitle.startsWith('[SA]') || rawTitle.startsWith('[VC]') || rawTitle.startsWith('[III]')) {
-                        isWhitelisted = true;
-                    }
+                if (!isWhitelisted && (rawTitle.includes('SA') || rawTitle.includes('VC') || rawTitle.includes('III'))) {
+                    isWhitelisted = true;
                 }
 
                 if (!isWhitelisted) {
@@ -73,9 +70,7 @@ async function scrapeMixMods() {
                 try {
                     const response = await axios.get(modPageUrl, { headers });
                     modPageHtml = response.data;
-                } catch (modPageError) {
-                    continue;
-                }
+                } catch (modPageError) { continue; }
 
                 const $$ = cheerio.load(modPageHtml);
                 const downloadElements = $$('a.download_bt1, a:has(.download_bt1), a:has(img[src*="download-baixar"])');
@@ -90,7 +85,7 @@ async function scrapeMixMods() {
                 if (downloadLinks.length === 0) continue;
 
                 const description = $$('div.entry-content > p').first().text().trim();
-                const thumbnailUrl = $$('div.entry-content img').first().attr('src') || $article.find('div.post-image a img').attr('src');
+                const thumbnailUrl = $$('div.entry-content img').first().attr('src') || $article.find('div.post-image a img').attr('src') || 'assets/placeholder.png';
                 
                 let gameTag = '';
                 let platform = 'PC';
@@ -98,39 +93,30 @@ async function scrapeMixMods() {
 
                 if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) platform = 'Mobile';
                 else if (lowerTitle.includes('ps2')) platform = 'PS2';
-                else if (lowerTitle.includes('definitive edition') || (lowerTitle.includes(' de ') && !lowerTitle.includes(' de '))) platform = 'DE';
+                else if (rawTitle.includes('SA:DE') || lowerTitle.includes('definitive edition')) platform = 'DE';
 
-                $article.find('span.cat-links a').each((_, link) => {
-                    const href = $(link).attr('href');
-                    if (href.includes('/sa/')) { gameTag = '[SA]'; return false; }
-                    if (href.includes('/vice-city/')) { gameTag = '[VC]'; return false; }
-                    if (href.includes('/iii/')) { gameTag = '[III]'; return false; }
-                });
-
-                if (!gameTag) {
-                    if (lowerTitle.includes('san andreas')) gameTag = '[SA]';
-                    else if (lowerTitle.includes('vice city')) gameTag = '[VC]';
-                    else if (lowerTitle.includes('gta 3') || lowerTitle.includes('gta iii')) gameTag = '[III]';
+                if (gameTagFromCategory) {
+                    gameTag = `[${gameTagFromCategory}]`;
+                } else if (rawTitle.startsWith('[SA]')) gameTag = '[SA]';
+                else if (rawTitle.startsWith('[VC]')) gameTag = '[VC]';
+                else if (rawTitle.startsWith('[III]')) gameTag = '[III]';
+                else if (rawTitle.startsWith('[SA/SA:DE]')) {
+                    gameTag = '[SA]';
+                    platform = 'DE';
                 }
 
-                const finalTitle = gameTag ? `${gameTag} ${rawTitle}` : rawTitle;
+                const finalTitle = gameTag ? `${gameTag} ${rawTitle.replace(gameTag, '').trim()}` : rawTitle;
                 allMods.push({ title: finalTitle, platform, modPageUrl, thumbnailUrl, description, uploadDate: new Date(uploadDate).toISOString(), downloadLinks });
                 console.log(`[ADDED] ${finalTitle}`);
             }
         } catch (error) {
-            console.error(`FATAL ERROR: Could not fetch page ${i}. The website may be blocking requests.`);
-            console.error('Error details:', error.message);
+            console.error(`FATAL ERROR: Could not fetch page ${i}.`);
             process.exit(1);
         }
     }
 
-    if (allMods.length > 0) {
-        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allMods, null, 2));
-        console.log(`\nScraping complete. Found ${allMods.length} mods. Data saved to ${OUTPUT_FILE}.`);
-    } else {
-        console.log('\nScraping finished, but no mods were collected. data.json was not created.');
-        process.exit(1);
-    }
+    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allMods, null, 2));
+    console.log(`\nScraping complete. Found ${allMods.length} mods.`);
 }
 
 scrapeMixMods();
