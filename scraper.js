@@ -9,6 +9,11 @@ const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
 };
 
+// Comprehensive blacklist for categories we want to ignore
+const categoryBlacklist = new Set([
+    '/iv/', '/v/', '/rdr2/', '/cyberpunk-2077/', '/mafia/', '/outros/', '/novidades/'
+]);
+
 async function scrapeMixMods() {
     console.log('Starting scraper...');
     const allMods = [];
@@ -21,7 +26,7 @@ async function scrapeMixMods() {
         try {
             const { data: pageHtml } = await axios.get(pageUrl, { headers });
             const $ = cheerio.load(pageHtml);
-            const articles = $('article:not(:has(span.cat-links a[href*="/novidades/"]))');
+            const articles = $('article');
 
             if (articles.length === 0) {
                 console.log('No more articles found. Ending scrape.');
@@ -30,6 +35,24 @@ async function scrapeMixMods() {
 
             for (const article of articles) {
                 const $article = $(article);
+                
+                // --- Blacklist Check ---
+                let isBlacklisted = false;
+                $article.find('span.cat-links a').each((_, link) => {
+                    const href = $(link).attr('href');
+                    for (const blocked of categoryBlacklist) {
+                        if (href.includes(blocked)) {
+                            isBlacklisted = true;
+                            return false; // Break the .each loop
+                        }
+                    }
+                });
+
+                if (isBlacklisted) {
+                    console.log(`[SKIPPED] ${$article.find('h2.entry-title a').text().trim()} - Reason: Blacklisted category`);
+                    continue;
+                }
+
                 const titleElement = $article.find('h2.entry-title a');
                 const rawTitle = titleElement.text().trim();
                 const modPageUrl = titleElement.attr('href');
@@ -76,9 +99,14 @@ async function scrapeMixMods() {
                 let platform = 'PC';
                 const lowerTitle = rawTitle.toLowerCase();
 
-                if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) platform = 'Mobile';
-                else if (lowerTitle.includes('ps2')) platform = 'PS2';
-                else if (lowerTitle.includes('definitive edition') || lowerTitle.includes(' de ')) platform = 'DE';
+                // More precise platform detection
+                if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) {
+                    platform = 'Mobile';
+                } else if (lowerTitle.includes('ps2')) {
+                    platform = 'PS2';
+                } else if (lowerTitle.includes('definitive edition') || (lowerTitle.includes(' de ') && !lowerTitle.includes(' de '))) {
+                    platform = 'DE';
+                }
 
                 const categoryLinks = $article.find('span.cat-links a');
                 categoryLinks.each((_, link) => {
