@@ -1,52 +1,95 @@
-name: Build and Deploy MixMods Browser
+const fs = require('fs').promises;
+const path = require('path');
 
-on:
-  workflow_dispatch:
+async function buildSite() {
+    console.log('Starting build process...');
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+    const PUBLIC_PATH = path.join(__dirname, 'public');
+    const SRC_PATH = path.join(__dirname, 'src');
 
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
+    await fs.rm(PUBLIC_PATH, { recursive: true, force: true });
+    await fs.mkdir(PUBLIC_PATH, { recursive: true });
 
-jobs:
-  build-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    try {
+        await fs.cp(path.join(SRC_PATH, 'assets'), path.join(PUBLIC_PATH, 'assets'), { recursive: true });
+        console.log('Copied static assets.');
+    } catch (error) {
+        console.error("Warning: 'src/assets' folder not found. Site will build without images.", error.message);
+    }
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
+    console.log('Loading data and assets into memory...');
+    const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'main.css'), 'utf-8');
+    const jsContent = await fs.readFile(path.join(SRC_PATH, 'js', 'app.js'), 'utf-8');
+    const modData = JSON.parse(await fs.readFile('data.json', 'utf-8'));
+    const manualData = JSON.parse(await fs.readFile('manual_data.json', 'utf-8'));
+    console.log('All data loaded.');
 
-      - name: Install dependencies
-        run: npm install
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MixMods Browser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=Inter:wght@600;700&display=swap" rel="stylesheet">
+    <style>${cssContent}</style>
+</head>
+<body>
+    <div id="loader"></div>
+    <header class="app-header">
+        <div class="container">
+            <a href="#" class="logo">MixMods Browser</a>
+            <div class="header-actions">
+                <div id="theme-switch" class="theme-switch" aria-label="Toggle dark mode">
+                    <div class="theme-switch-track">
+                        <div class="theme-switch-thumb"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
 
-      - name: Run scraper
-        run: node scraper.js
+    <main class="container">
+        <div class="filter-bar">
+            <input type="search" id="search-input" placeholder="Filter by name...">
+            <select id="platform-filter" aria-label="Filter by Platform">
+                <option value="all">All Platforms</option>
+                <option value="PC">PC</option>
+                <option value="Mobile">Mobile</option>
+                <option value="DE">Definitive Edition</option>
+                <option value="PS2">PS2</option>
+            </select>
+            <select id="game-filter" aria-label="Filter by Game">
+                <option value="all">All Games</option>
+                <option value="SA">GTA SA</option>
+                <option value="VC">GTA VC</option>
+                <option value="III">GTA III</option>
+            </select>
+            <select id="sort-control" aria-label="Sort by">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+            </select>
+        </div>
+        <div id="mod-grid" class="mod-grid"></div>
+        <div id="pagination" class="pagination"></div>
+    </main>
 
-      - name: Run build script
-        run: node build.js
+    <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div id="modal-content" class="modal-content"></div>
+    </div>
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+    <script id="mod-data" type="application/json">${JSON.stringify(modData)}</script>
+    <script id="featured-data" type="application/json">${JSON.stringify(manualData.featured)}</script>
+    <script id="changelog-data" type="application/json">${JSON.stringify(manualData.changelogs)}</script>
+    <script>${jsContent}</script>
+</body>
+</html>
+    `;
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          # --- FIX: Deploy from the new 'public' folder ---
-          path: './public'
+    await fs.writeFile(path.join(PUBLIC_PATH, 'index.html'), htmlContent);
+    console.log('Build complete. Generated public/index.html.');
+}
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+buildSite();
