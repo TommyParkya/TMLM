@@ -35,6 +35,9 @@ async function scrapeMixMods() {
             }
 
             for (const article of articles) {
+                // --- THE FIX: $article is now correctly defined before use ---
+                const $article = $(article);
+                
                 let isBlacklisted = false;
                 $article.find('span.cat-links a').each((_, link) => {
                     const href = $(link).attr('href');
@@ -108,7 +111,8 @@ async function scrapeMixMods() {
         } catch (error) {
             console.error(`FATAL ERROR: Could not fetch page ${i}. The website may be blocking requests.`);
             console.error('Error details:', error.message);
-            break;
+            // Exit with a failure code to stop the workflow
+            process.exit(1);
         }
     }
 
