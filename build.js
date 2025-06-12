@@ -4,7 +4,7 @@ const path = require('path');
 async function buildSite() {
     console.log('Starting build process...');
 
-    const CWD = process.cwd();
+    const CWD = __dirname;
     const PUBLIC_PATH = path.join(CWD, 'public');
     const SRC_PATH = path.join(CWD, 'src');
     const DATA_FILE = path.join(CWD, 'data.json');
