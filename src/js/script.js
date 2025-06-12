@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'sharemods.com': 'https://sharemods.com/favicon.ico',
         'mediafire.com': 'https://www.mediafire.com/favicon.ico',
         'drive.google.com': 'https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png',
-        'patreon.com': 'https://c5.patreon.com/external/favicon/rebrand/favicon.ico?v=af5597c2ef'
+        'patreon.com': 'https://c5.patreon.com/external/favicon/rebrand/favicon.ico?v=af5597c2ef',
+        'modsfire.com': 'https://modsfire.com/favicon.ico'
     };
     const gameInfoMap = {
         '[SA]': { name: 'Grand Theft Auto: San Andreas', icon: 'assets/gta_sa.png' },
@@ -41,16 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentPage = 1;
     const MODS_PER_PAGE = 9;
 
-    function getModSlug(modPageUrl) {
-        try { return new URL(modPageUrl).pathname.split('/').filter(Boolean).pop() || 'mod'; }
-        catch (e) { return 'mod-' + Math.random().toString(36).substring(2, 9); }
-    }
-
     function formatDate(dateString, format = 'long') {
+        const date = new Date(dateString);
         if (format === 'long') {
-            return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
+            return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(date);
         }
-        return new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(dateString));
+        return new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
     }
 
     function renderMods(modsToRender) {
@@ -63,11 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const featuredSet = new Set(featuredData);
         const fragment = document.createDocumentFragment();
 
-        modsToRender.forEach((mod, index) => {
+        modsToRender.forEach((mod) => {
             const isFeatured = featuredSet.has(mod.modPageUrl);
             const post = document.createElement('div');
             post.className = 'blog-post';
-            post.dataset.modIndex = modsData.findIndex(m => m.modPageUrl === mod.modPageUrl);
+            post.dataset.modUrl = mod.modPageUrl;
             post.innerHTML = `
                 <a href="#" class="blog-post-image">
                     <img src="${mod.thumbnailUrl}" alt="Mod Thumbnail" loading="lazy" decoding="async">
@@ -108,10 +105,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const hostname = new URL(link.url).hostname.replace('www.', '');
             const iconUrl = downloadIconMap[hostname];
             if (iconUrl) {
-                return `<a href="${link.url}" class="button is-secondary" target="_blank" rel="noopener noreferrer" style="background-color: #fff; padding: 0.5rem 1rem;"><img src="${iconUrl}" style="height: 24px;"></a>`;
+                return `<a href="${link.url}" target="_blank" rel="noopener noreferrer"><img src="${iconUrl}" title="${hostname}"></a>`;
             }
-            return `<a href="${link.url}" class="button is-primary" target="_blank" rel="noopener noreferrer">Download</a>`;
-        }).join(' ');
+            return '';
+        }).join('');
 
         const changelogs = changelogData[mod.modPageUrl];
         let changelogHtml = '';
@@ -123,31 +120,25 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         lightboxContent.innerHTML = `
-            <div class="blog-hero" style="min-height: auto;">
-                <div class="blog-hero-image" style="background-image:url(${mod.thumbnailUrl}); position: relative; height: 300px; mask-image: linear-gradient(rgba(0,0,0,1) 70%, transparent 100%); -webkit-mask-image: linear-gradient(rgba(0,0,0,1) 70%, transparent 100%);"></div>
-                <div class="blog-hero-body" style="padding: 2rem;">
-                    <div class="container">
-                        <div class="body-info">
-                            <div class="tags" style="display: flex; align-items: center; justify-content: space-between;">
-                                <div class="tag secondary"><span class="icon"><i>schedule</i></span> ${formatDate(mod.uploadDate, 'short')}</div>
-                                <div class="hero-buttons" style="display: flex; gap: 0.5rem;">${downloadButtons}</div>
-                            </div>
-                            <h1>${mod.title}</h1>
-                            <p>${mod.description}</p>
-                            <div class="author">
-                                <div class="card user-card">
-                                    <div class="image"><img src="${gameInfo.icon}"></div>
-                                    <div class="body">
-                                        <div class="title has-text-white">${gameInfo.name}</div>
-                                        <div class="position">${mod.platform}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+            <div class="lightbox-header">
+                <div class="game-info-block">
+                    <img src="${gameInfo.icon}" alt="${gameInfo.name}">
+                    <div class="game-details">
+                        <div class="game-name">${gameInfo.name}</div>
+                        <div class="platform">${mod.platform}</div>
                     </div>
                 </div>
+                <div class="meta-info">
+                    <div class="upload-date">${formatDate(mod.uploadDate, 'short')}</div>
+                    <div class="download-links">${downloadButtons}</div>
+                </div>
             </div>
-            ${changelogHtml ? `<div class="change-blog-container" style="background: #1a1a1a; padding: 2rem;"><div class="container">${changelogHtml}</div></div>` : ''}
+            <div class="lightbox-body">
+                <h1 class="mod-title">${mod.title}</h1>
+                <img class="mod-thumbnail" src="${mod.thumbnailUrl}" alt="Mod Thumbnail">
+                <p class="mod-description">${mod.description}</p>
+                ${changelogHtml ? `<div class="change-blog-container">${changelogHtml}</div>` : ''}
+            </div>
         `;
         lightboxOverlay.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
@@ -194,24 +185,21 @@ document.addEventListener('DOMContentLoaded', () => {
     postContainer.addEventListener('click', e => {
         e.preventDefault();
         const post = e.target.closest('.blog-post');
-        if (post && post.dataset.modIndex) {
-            const mod = modsData[parseInt(post.dataset.modIndex)];
-            showLightbox(mod);
+        if (post && post.dataset.modUrl) {
+            const mod = modsData.find(m => m.modPageUrl === post.dataset.modUrl);
+            if (mod) showLightbox(mod);
         }
     });
 
     lightboxOverlay.addEventListener('click', (e) => {
-        if (e.target === lightboxOverlay) {
-            hideLightbox();
-        }
+        if (e.target === lightboxOverlay) hideLightbox();
     });
 
     paginationContainer.addEventListener('click', e => {
         const target = e.target.closest('a[data-page]');
         if (target && !target.hasAttribute('disabled')) {
             currentPage = parseInt(target.dataset.page);
-            updateView();
-            window.scrollTo(0, 0);
+            updateView(true); // Preserve scroll on page change
         }
     });
 
