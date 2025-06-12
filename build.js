@@ -2,123 +2,46 @@ const fs = require('fs').promises;
 const path = require('path');
 const cheerio = require('cheerio');
 
-const MODS_PER_PAGE = 9;
 const repo = process.env.GITHUB_REPOSITORY || '';
 const basePath = repo ? `/${repo.split('/')[1]}` : '';
 
 const DOCS_PATH = path.join(__dirname, 'docs');
 const SRC_PATH = path.join(__dirname, 'src');
 
-const downloadIconMap = {
-    'sharemods.com': 'https://sharemods.com/favicon.ico',
-    'mediafire.com': 'https://www.mediafire.com/favicon.ico',
-    'drive.google.com': 'https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png',
-    'patreon.com': 'https://c5.patreon.com/external/favicon/rebrand/favicon.ico?v=af5597c2ef'
-};
-
-const gameInfoMap = {
-    '[SA]': { name: 'Grand Theft Auto: San Andreas', icon: 'assets/gta_sa.png' },
-    '[VC]': { name: 'Grand Theft Auto: Vice City', icon: 'assets/gta_vc.png' },
-    '[III]': { name: 'Grand Theft Auto: III', icon: 'assets/gta_3.png' }
-};
-
-function getModSlug(modPageUrl) {
-    try { return new URL(modPageUrl).pathname.split('/').filter(Boolean).pop() || 'mod'; }
-    catch (e) { return 'mod-' + Math.random().toString(36).substring(2, 9); }
-}
-
-function updateHeaderButton($, assetPrefix = '') {
-    const buyButton = $('header .header-navigation a');
-    buyButton.attr('href', 'https://www.mixmods.com.br/').attr('target', '_blank');
-    buyButton.find('span').text('Visit MixMods');
-    buyButton.find('svg').replaceWith(`<img src="${assetPrefix}assets/logo.svg" alt="MixMods Logo" style="height: 26px; width: 26px; filter: invert(39%) sepia(98%) saturate(2544%) hue-rotate(195deg) brightness(103%) contrast(101%);">`);
-}
-
-function formatDate(dateString) {
-    return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
-}
-
 async function buildSite() {
     console.log(`Starting build process. Base path is set to: '${basePath}'`);
 
     await fs.rm(DOCS_PATH, { recursive: true, force: true });
     await fs.mkdir(DOCS_PATH, { recursive: true });
-    await fs.mkdir(path.join(DOCS_PATH, 'mods'), { recursive: true });
-    await fs.mkdir(path.join(DOCS_PATH, 'page'), { recursive: true });
     await fs.cp(path.join(__dirname, 'assets'), path.join(DOCS_PATH, 'assets'), { recursive: true });
 
     const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'style.css'), 'utf-8');
     const jsContent = await fs.readFile(path.join(SRC_PATH, 'js', 'script.js'), 'utf-8');
     const data = JSON.parse(await fs.readFile('data.json', 'utf-8'));
     const featured = JSON.parse(await fs.readFile('featured.json', 'utf-8'));
+    const changelogs = JSON.parse(await fs.readFile('changelogs.json', 'utf-8'));
     const listTemplate = await fs.readFile(path.join(SRC_PATH, 'templates', 'list_template.html'), 'utf-8');
-    const modTemplate = await fs.readFile(path.join(SRC_PATH, 'templates', 'mod_template.html'), 'utf-8');
     console.log('Loaded assets and data.');
 
-    const featuredSet = new Set(featured);
-    data.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
+    const $ = cheerio.load(listTemplate);
 
-    const processPage = ($, assetPrefix = '') => {
-        $('link[rel="stylesheet"]').replaceWith(`<style>${cssContent}</style>`);
-        $('script[src]').replaceWith(`<script>${jsContent}</script>`);
-        $('a[href="/"]').attr('href', `${assetPrefix}index.html`);
-        updateHeaderButton($, assetPrefix);
-    };
+    $('link[rel="stylesheet"]').replaceWith(`<style>${cssContent}</style>`);
+    $('script[src]').replaceWith(`<script>${jsContent}</script>`);
+    
+    const buyButton = $('header .header-navigation a');
+    buyButton.attr('href', 'https://www.mixmods.com.br/').attr('target', '_blank');
+    buyButton.find('span').text('Visit MixMods');
+    buyButton.find('svg').replaceWith(`<img src="assets/logo.svg" alt="MixMods Logo" style="height: 26px; width: 26px; filter: invert(39%) sepia(98%) saturate(2544%) hue-rotate(195deg) brightness(103%) contrast(101%);">`);
+    
+    $('a.header-brand').attr('href', `${basePath}/`);
 
-    for (const mod of data) {
-        const $ = cheerio.load(modTemplate);
-        processPage($, '../');
+    $('body').append(`<script id="mod-data" type="application/json">${JSON.stringify(data)}</script>`);
+    $('body').append(`<script id="featured-data" type="application/json">${JSON.stringify(featured)}</script>`);
+    $('body').append(`<script id="changelog-data" type="application/json">${JSON.stringify(changelogs)}</script>`);
 
-        $('title').text(`${mod.title} - MixMods Browser`);
-        $('.blog-hero-image').css('background-image', `url(${mod.thumbnailUrl})`);
-        $('.blog-hero-body h1').text(mod.title);
-        $('.blog-hero-body p').text(mod.description);
-        $('.tags .tag.secondary').html(`<span class="icon"><i>schedule</i></span> ${formatDate(mod.uploadDate)}`);
-
-        const gameTag = mod.title.match(/^\[(SA|VC|III)\]/);
-        const gameInfo = gameTag ? gameInfoMap[gameTag[0]] : { name: 'Unknown Game', icon: 'assets/gta_default.png' };
-        
-        $('.author').html(`
-            <div class="card user-card">
-                <div class="image"><img src="../${gameInfo.icon}"></div>
-                <div class="body">
-                    <div class="title has-text-white">${gameInfo.name}</div>
-                    <div class="position">${mod.platform}</div>
-                </div>
-            </div>
-        `);
-
-        const downloadButtons = mod.downloadLinks.map(link => {
-            const hostname = new URL(link.url).hostname.replace('www.', '');
-            const iconUrl = downloadIconMap[hostname];
-            if (iconUrl) {
-                return `<a href="${link.url}" class="button is-secondary is-large" target="_blank" rel="noopener noreferrer" style="background-color: #fff; padding: 0.5rem 1rem;"><img src="${iconUrl}" style="height: 24px; margin-right: 8px;"><span>${hostname}</span></a>`;
-            }
-            return `<a href="${link.url}" class="button is-primary is-large" target="_blank" rel="noopener noreferrer">Download</a>`;
-        }).join(' ');
-        $('.news-section-block .content').html(`<div class="hero-buttons" style="justify-content: flex-start; margin-top: 2rem; gap: 1rem; flex-wrap: wrap;">${downloadButtons}</div>`);
-
-        await fs.writeFile(path.join(DOCS_PATH, 'mods', `${getModSlug(mod.modPageUrl)}.html`), $.html());
-    }
-    console.log(`Generated ${data.length} mod detail pages.`);
-
-    const totalPages = Math.ceil(data.length / MODS_PER_PAGE);
-    for (let i = 1; i <= totalPages; i++) {
-        const $ = cheerio.load(listTemplate);
-        const assetPrefix = (i === 1) ? '' : '../';
-        processPage($, assetPrefix);
-
-        $('body').append(`<script id="mod-data" type="application/json">${JSON.stringify(data)}</script>`);
-        $('body').append(`<script id="featured-data" type="application/json">${JSON.stringify(featured)}</script>`);
-
-        const pagePath = (i === 1) ? 'index.html' : `page/${i}.html`;
-        await fs.writeFile(path.join(DOCS_PATH, pagePath), $.html());
-        if (i === 1) {
-             await fs.writeFile(path.join(DOCS_PATH, 'page', '1.html'), $.html());
-        }
-    }
-    console.log(`Generated ${totalPages} list pages.`);
-    console.log('Build complete.');
+    await fs.writeFile(path.join(DOCS_PATH, 'index.html'), $.html());
+    
+    console.log('Build complete. Generated index.html.');
 }
 
 buildSite();
