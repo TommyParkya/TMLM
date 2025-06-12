@@ -10,9 +10,9 @@ const OUTPUT_FILE = path.join(__dirname, 'data.json');
 const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36' };
 
 const gameKeywords = {
-    SA: ['[SA]', 'san andreas', '/sa/'],
-    VC: ['[VC]', 'vice city', '/vc/'],
-    III: ['[III]', 'gta 3', '/iii/']
+    SA: ['[sa]', 'san andreas', '/sa/'],
+    VC: ['[vc]', 'vice city', '/vc/'],
+    III: ['[iii]', 'gta 3', '/iii/']
 };
 
 async function scrapeMixMods() {
@@ -76,15 +76,20 @@ async function scrapeMixMods() {
                 const description = $$('div.entry-content > p').first().text().trim();
                 const thumbnailUrl = $$('div.entry-content img').first().attr('src') || $article.find('div.post-image a img').attr('src') || 'assets/placeholder.png';
                 
+                // --- YOUR CORRECTED LOGIC ---
                 let platform = 'PC';
-                if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) platform = 'Mobile';
-                else if (lowerTitle.includes('ps2')) platform = 'PS2';
-                else if (rawTitle.includes('DE') || lowerTitle.includes('definitive edition')) platform = 'DE';
+                if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) {
+                    platform = 'Mobile';
+                } else if (lowerTitle.includes('ps2')) {
+                    platform = 'PS2';
+                } else if (rawTitle.includes('DE') || lowerTitle.includes('definitive edition')) {
+                    platform = 'DE';
+                }
 
-                const finalTitle = rawTitle.replace(/^\[(SA|VC|III)\]\s*/, '');
+                const finalTitle = rawTitle.replace(/^\[(SA|VC|III)\]\s*/i, '');
                 
                 allMods.push({ title: finalTitle, game, platform, modPageUrl, thumbnailUrl, description, uploadDate, downloadLinks });
-                console.log(`[ADDED] [${game}] ${finalTitle}`);
+                console.log(`[ADDED] [${game}] [${platform}] ${finalTitle}`);
             }
         } catch (error) {
             console.error(`FATAL ERROR on page ${i}:`, error.message);
