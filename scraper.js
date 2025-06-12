@@ -38,7 +38,7 @@ async function scrapeMixMods() {
                 processedUrls.add(modPageUrl);
 
                 const uploadDate = $article.find('time.entry-date.published').attr('datetime');
-                const thumbnailUrl = $article.find('div.post-image a img').attr('src');
+                const listPageThumbnail = $article.find('div.post-image a img').attr('src');
 
                 let modPageHtml;
                 try {
@@ -50,7 +50,7 @@ async function scrapeMixMods() {
                 }
 
                 const $$ = cheerio.load(modPageHtml);
-                const downloadElements = $$('a.download_bt1, a:has(.download_bt1), a:has(img[src="https://www.mixmods.com.br/wp-content/uploads/2021/11/download-baixar-4532137.png"])');
+                const downloadElements = $$('a.download_bt1, a:has(.download_bt1), a:has(img[src*="download-baixar"])');
 
                 if (downloadElements.length === 0) {
                     console.log(`[SKIPPED] ${rawTitle} - Reason: No download link found`);
@@ -59,11 +59,8 @@ async function scrapeMixMods() {
 
                 const downloadLinks = [];
                 downloadElements.each((_, el) => {
-                    const $el = $$(el);
-                    const url = $el.attr('href');
-                    if (url) {
-                        downloadLinks.push({ url });
-                    }
+                    const url = $$(el).attr('href');
+                    if (url) downloadLinks.push({ url });
                 });
                 
                 if (downloadLinks.length === 0) {
@@ -72,8 +69,9 @@ async function scrapeMixMods() {
                 }
 
                 const description = $$('div.entry-content > p').first().text().trim();
+                const highQualityThumbnail = $$('div.entry-content img').first().attr('src');
+                const thumbnailUrl = highQualityThumbnail || listPageThumbnail;
                 
-                // --- Game and Platform Tagging ---
                 let gameTag = '';
                 let platform = 'PC';
                 const lowerTitle = rawTitle.toLowerCase();
