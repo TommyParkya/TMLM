@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          # --- FIX: Removed the 'cache' line to prevent lock file errors ---
 
       - name: Install dependencies
         run: npm install
@@ -44,7 +44,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # --- FIX: Deploy from the new 'public' folder ---
           path: './public'
 
       - name: Deploy to GitHub Pages
