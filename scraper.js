@@ -79,9 +79,9 @@ async function scrapeMixMods() {
                 let platform = 'PC';
                 if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) platform = 'Mobile';
                 else if (lowerTitle.includes('ps2')) platform = 'PS2';
-                else if (rawTitle.includes('SA:DE') || lowerTitle.includes('definitive edition')) platform = 'DE';
+                else if (rawTitle.includes('DE') || lowerTitle.includes('definitive edition')) platform = 'DE';
 
-                const finalTitle = rawTitle.replace(/^\[(SA|VC|III|SA\/SA:DE)\]\s*/, '');
+                const finalTitle = rawTitle.replace(/^\[(SA|VC|III)\]\s*/, '');
                 
                 allMods.push({ title: finalTitle, game, platform, modPageUrl, thumbnailUrl, description, uploadDate, downloadLinks });
                 console.log(`[ADDED] [${game}] ${finalTitle}`);
