@@ -4,8 +4,12 @@ const path = require('path');
 async function buildSite() {
     console.log('Starting build process...');
 
-    const PUBLIC_PATH = path.join(__dirname, 'public');
-    const SRC_PATH = path.join(__dirname, 'src');
+    // Use path.resolve to create absolute paths from the script's location
+    const CWD = __dirname;
+    const PUBLIC_PATH = path.resolve(CWD, 'public');
+    const SRC_PATH = path.resolve(CWD, 'src');
+    const DATA_FILE = path.resolve(CWD, 'data.json');
+    const MANUAL_DATA_FILE = path.resolve(CWD, 'manual_data.json');
 
     await fs.rm(PUBLIC_PATH, { recursive: true, force: true });
     await fs.mkdir(PUBLIC_PATH, { recursive: true });
@@ -20,8 +24,8 @@ async function buildSite() {
     console.log('Loading data and assets from disk...');
     const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'main.css'), 'utf-8');
     const jsContent = await fs.readFile(path.join(SRC_PATH, 'js', 'app.js'), 'utf-8');
-    const modData = JSON.parse(await fs.readFile(path.join(__dirname, 'data.json'), 'utf-8'));
-    const manualData = JSON.parse(await fs.readFile(path.join(__dirname, 'manual_data.json'), 'utf-8'));
+    const modData = JSON.parse(await fs.readFile(DATA_FILE, 'utf-8'));
+    const manualData = JSON.parse(await fs.readFile(MANUAL_DATA_FILE, 'utf-8'));
     console.log('All data loaded successfully.');
 
     const htmlShell = `
