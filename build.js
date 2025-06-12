@@ -4,11 +4,10 @@ const cheerio = require('cheerio');
 
 // --- CONFIGURATION ---
 const MODS_PER_PAGE = 9;
-const GITHUB_USERNAME = 'tommyparkya';
-const REPO_NAME = 'TMLM';
-
-// --- The absolute path to your site's root ---
-const siteRootUrl = `https://${GITHUB_USERNAME}.github.io/${REPO_NAME}`;
+// This will dynamically get the repository name like "tommyparkya/TMLM" from the GitHub Actions environment.
+// If running locally, it will default to an empty path.
+const repo = process.env.GITHUB_REPOSITORY || '';
+const basePath = repo ? `/${repo.split('/')[1]}` : '';
 
 // --- PATHS ---
 const DOCS_PATH = path.join(__dirname, 'docs');
@@ -23,17 +22,17 @@ function getModSlug(modPageUrl) {
     }
 }
 
-// Helper function to fix all paths using the absolute site root URL
-function fixPaths($, rootUrl) {
-    // --- FIX: Use the full, absolute URL for CSS and JS ---
-    $('link[rel="stylesheet"]').attr('href', `${rootUrl}/css/styles.css`);
-    $('script[src]').attr('src', `${rootUrl}/js/script.js`);
+// Helper function to fix all paths for deployment
+function fixPaths($, basePath) {
+    // Fix CSS and JS links
+    $('link[rel="stylesheet"]').attr('href', `${basePath}/css/styles.css`);
+    $('script[src]').attr('src', `${basePath}/js/script.js`);
 
-    // Fix navigation and brand links to point to the site root
-    $('a[href="/"]').attr('href', `${rootUrl}/`);
-    $('a[href^="/news"]').attr('href', `${rootUrl}/`);
-    $('a[href^="/changes"]').attr('href', `${rootUrl}/`);
-    $('a[href^="/support"]').attr('href', `${rootUrl}/`);
+    // Fix navigation and brand links
+    $('a[href="/"]').attr('href', `${basePath}/`);
+    $('a[href^="/news"]').attr('href', `${basePath}/`);
+    $('a[href^="/changes"]').attr('href', `${basePath}/`);
+    $('a[href^="/support"]').attr('href', `${basePath}/`);
 }
 
 // Helper function to update the header button
@@ -46,7 +45,7 @@ function updateHeaderButton($) {
 
 // Main build function
 async function buildSite() {
-    console.log('Starting build process...');
+    console.log(`Starting build process. Base path is set to: '${basePath}'`);
 
     await fs.rm(DOCS_PATH, { recursive: true, force: true });
     await fs.mkdir(DOCS_PATH, { recursive: true });
@@ -75,7 +74,7 @@ async function buildSite() {
     // --- Generate Mod Detail Pages ---
     for (const mod of data) {
         const $ = cheerio.load(modTemplate);
-        fixPaths($, siteRootUrl);
+        fixPaths($, basePath);
         updateHeaderButton($);
 
         $('title').text(`${mod.title} - MixMods Browser`);
@@ -95,7 +94,7 @@ async function buildSite() {
     const totalPages = Math.ceil(data.length / MODS_PER_PAGE);
     for (let i = 1; i <= totalPages; i++) {
         const $ = cheerio.load(listTemplate);
-        fixPaths($, siteRootUrl);
+        fixPaths($, basePath);
         updateHeaderButton($);
 
         $('body').append(`<script id="mod-data" type="application/json">${JSON.stringify(data)}</script>`);
@@ -105,12 +104,12 @@ async function buildSite() {
         $('.blog-list-header .blog-hero-image').css('background-image', `url(${featuredMod.thumbnailUrl})`);
         $('.blog-list-header h1').text(featuredMod.title);
         $('.blog-list-header p').text(featuredMod.description);
-        $('.blog-list-header a').attr('href', `${siteRootUrl}/mods/${getModSlug(featuredMod.modPageUrl)}.html`);
+        $('.blog-list-header a').attr('href', `${basePath}/mods/${getModSlug(featuredMod.modPageUrl)}.html`);
 
         const postContainer = $('.blog-posts-container').empty();
         const pageMods = data.slice((i - 1) * MODS_PER_PAGE, i * MODS_PER_PAGE);
         for (const mod of pageMods) {
-            const modPagePath = `${siteRootUrl}/mods/${getModSlug(mod.modPageUrl)}.html`;
+            const modPagePath = `${basePath}/mods/${getModSlug(mod.modPageUrl)}.html`;
             const isFeatured = featuredSet.has(mod.modPageUrl);
             postContainer.append(`
                 <div class="blog-post">
@@ -126,11 +125,11 @@ async function buildSite() {
 
         const paginationList = $('.pagination-list').empty();
         for (let p = 1; p <= totalPages; p++) {
-            const pageHref = p === 1 ? `${siteRootUrl}/` : `${siteRootUrl}/page/${p}.html`;
+            const pageHref = p === 1 ? `${basePath}/` : `${basePath}/page/${p}.html`;
             paginationList.append(`<li><a href="${pageHref}" class="pagination-link ${p === i ? 'is-current' : ''}">${p}</a></li>`);
         }
-        const prevHref = i > 1 ? (i === 2 ? `${siteRootUrl}/` : `${siteRootUrl}/page/${i - 1}.html`) : null;
-        const nextHref = i < totalPages ? `${siteRootUrl}/page/${i + 1}.html` : null;
+        const prevHref = i > 1 ? (i === 2 ? `${basePath}/` : `${basePath}/page/${i - 1}.html`) : null;
+        const nextHref = i < totalPages ? `${basePath}/page/${i + 1}.html` : null;
         $('.pagination-previous').attr('href', prevHref).prop('disabled', !prevHref);
         $('.pagination-next').attr('href', nextHref).prop('disabled', !nextHref);
 
