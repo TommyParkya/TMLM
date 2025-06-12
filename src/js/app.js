@@ -110,7 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const downloadButtons = numberedLinks.map(link => {
             const iconUrl = downloadIconMap[link.hostname];
             const tooltipText = hostCounts[link.hostname] > 1 ? `${link.hostname} ${link.number}` : link.hostname;
-            return iconUrl ? `<div class="tooltip"><a href="${link.url}" target="_blank" rel="noopener noreferrer"><img src="${iconUrl}" title="${tooltipText}"></a><span class="tooltiptext">${tooltipText}</span></div>` : '';
+            const badge = hostCounts[link.hostname] > 1 ? `<span class="download-badge">${link.number}</span>` : '';
+            return iconUrl ? `<div class="tooltip"><a href="${link.url}" target="_blank" rel="noopener noreferrer"><img src="${iconUrl}" title="${tooltipText}">${badge}</a><span class="tooltiptext">${tooltipText}</span></div>` : '';
         }).join('');
 
         const changelogs = changelogData[mod.modPageUrl];
@@ -171,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const dateA = new Date(a.uploadDate);
             const dateB = new Date(b.uploadDate);
-            return state.filters.sort === 'newest' ? dateB - dateA : dateA - dateB;
+            return state.filters.sort === 'newest' ? dateB - dateA : dateB - dateA;
         });
 
         state.mods = filteredMods;
