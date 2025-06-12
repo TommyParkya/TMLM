@@ -6,7 +6,6 @@ async function buildSite() {
 
     const CWD = __dirname;
     const PUBLIC_PATH = path.join(CWD, 'public');
-    // This now correctly points to 'src' without the dot.
     const SRC_PATH = path.join(CWD, 'src');
     const DATA_FILE = path.join(CWD, 'data.json');
     const MANUAL_DATA_FILE = path.join(CWD, 'manual_data.json');
