@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MixMods Browser</title>
+    <link rel="stylesheet" href="fluent.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>MixMods Browser</h1>
+
+        <div class="filters">
+            <input type="text" id="search-bar" placeholder="Search for mods...">
+            <select id="platform-select">
+                <option value="">All Platforms</option>
+                </select>
+            <select id="gta-game-select">
+                <option value="">All GTA Games</option>
+                 </select>
+            <select id="sort-select">
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+            </select>
+             <button id="dark-mode-toggle">Toggle Dark Mode</button>
+        </div>
+
+        <div id="mods-container" class="mods-grid">
+            </div>
+
+        <div class="pagination">
+            <button id="prev-page">Previous</button>
+            <span id="page-indicator">Page 1</span>
+            <button id="next-page">Next</button>
+        </div>
+    </div>
+
+    <div id="mod-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+     <div id="image-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <img id="modal-image" src="" alt="Full-size image">
+        </div>
+    </div>
+
+
+    <script src="main.js"></script>
+</body>
+</html>
