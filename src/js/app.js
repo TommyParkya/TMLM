@@ -28,8 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalOverlay = document.getElementById('modal-overlay');
     const modalContent = document.getElementById('modal-content');
     
-    function formatDate(dateString) {
-        return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
+    function formatDate(dateString, format = 'long') {
+        const date = new Date(dateString);
+        if (format === 'long') {
+            return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(date);
+        }
+        return new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
     }
 
     function renderGrid() {
@@ -75,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const createButton = (text, page, disabled = false) => {
             const button = document.createElement('button');
-            button.textContent = text;
+            button.innerHTML = text;
             button.dataset.page = page;
             if (disabled) button.disabled = true;
             return button;
@@ -96,10 +100,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const gameTag = mod.title.match(/^\[(SA|VC|III)\]/);
         const gameInfo = gameTag ? gameInfoMap[gameTag[0]] : { name: 'Unknown Game', icon: 'assets/gta_default.png' };
         
-        const downloadButtons = mod.downloadLinks.map(link => {
+        const hostCounts = {};
+        const numberedLinks = mod.downloadLinks.map(link => {
             const hostname = new URL(link.url).hostname.replace('www.', '');
-            const iconUrl = downloadIconMap[hostname];
-            return iconUrl ? `<a href="${link.url}" target="_blank" rel="noopener noreferrer"><img src="${iconUrl}" title="${hostname}"></a>` : '';
+            hostCounts[hostname] = (hostCounts[hostname] || 0) + 1;
+            return { ...link, hostname, number: hostCounts[hostname] };
+        });
+
+        const downloadButtons = numberedLinks.map(link => {
+            const iconUrl = downloadIconMap[link.hostname];
+            const tooltipText = hostCounts[link.hostname] > 1 ? `${link.hostname} ${link.number}` : link.hostname;
+            return iconUrl ? `<div class="tooltip"><a href="${link.url}" target="_blank" rel="noopener noreferrer"><img src="${iconUrl}" title="${tooltipText}"></a><span class="tooltiptext">${tooltipText}</span></div>` : '';
         }).join('');
 
         const changelogs = changelogData[mod.modPageUrl];
@@ -121,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
                 <div class="meta-info">
-                    <span class="upload-date">${formatDate(mod.uploadDate)}</span>
+                    <span class="upload-date">${formatDate(mod.uploadDate, 'short')}</span>
                     <div class="download-links">${downloadButtons}</div>
                 </div>
             </header>
@@ -143,7 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('modal-open');
     }
 
-    function updateView() {
+    function updateView(preserveScroll = false) {
+        const scrollY = window.scrollY;
         const featuredSet = new Set(featuredData);
         let filteredMods = modsData.filter(mod => {
             const titleMatch = mod.title.toLowerCase().includes(state.filters.search);
@@ -165,6 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
         state.mods = filteredMods;
         renderGrid();
         renderPagination();
+        
+        if (preserveScroll) {
+            window.scrollTo({ top: scrollY, behavior: 'instant' });
+        }
     }
 
     function init() {
@@ -181,18 +197,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.filters.search = e.target.value.toLowerCase();
                 state.currentPage = 1;
                 updateView();
+                window.scrollTo(0, 0);
             }, 300);
         });
 
-        platformFilter.addEventListener('change', (e) => { state.filters.platform = e.target.value; state.currentPage = 1; updateView(); });
-        gameFilter.addEventListener('change', (e) => { state.filters.game = e.target.value; state.currentPage = 1; updateView(); });
-        sortControl.addEventListener('change', (e) => { state.filters.sort = e.target.value; state.currentPage = 1; updateView(); });
+        const handleFilterChange = () => { state.currentPage = 1; updateView(); window.scrollTo(0, 0); };
+        platformFilter.addEventListener('change', handleFilterChange);
+        gameFilter.addEventListener('change', handleFilterChange);
+        sortControl.addEventListener('change', handleFilterChange);
 
         paginationContainer.addEventListener('click', (e) => {
             if (e.target.tagName === 'BUTTON' && e.target.dataset.page) {
                 state.currentPage = parseInt(e.target.dataset.page);
-                updateView();
-                window.scrollTo(0, 0);
+                updateView(true);
             }
         });
 
@@ -218,8 +235,12 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('theme', newTheme);
         });
 
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) {
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
 
         updateView();
         document.getElementById('loader').style.display = 'none';
