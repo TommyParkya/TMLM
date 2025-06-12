@@ -1,7 +1,63 @@
 name: Build and Deploy MixMods Browser
 
 on:
+  workflow_dispatch:name: Build and Deploy MixMods Browser
+
+on:
   workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    runs-on: ubuntu-latest
+    
+    # --- THE FIX: Define a default working directory for all steps ---
+    defaults:
+      run:
+        working-directory: ./TMLM
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # This creates the TMLM directory that all subsequent steps will work inside of
+          path: TMLM
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run scraper
+        run: node scraper.js
+
+      - name: Run build script
+        run: node build.js
+
+      - name: Upload artifact for deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # The path is now relative to the root of the workspace
+          path: ./TMLM/public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
 permissions:
   contents: read
