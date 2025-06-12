@@ -34,8 +34,13 @@ async function scrapeMixMods() {
 
             for (const article of articles) {
                 const $article = $(article);
+                const titleElement = $article.find('h2.entry-title a');
+                const rawTitle = titleElement.text().trim();
                 
+                // --- THE FIX: Two-stage whitelist check ---
                 let isWhitelisted = false;
+                
+                // Stage 1: Check category links first.
                 $article.find('span.cat-links a').each((_, link) => {
                     const href = $(link).attr('href');
                     for (const allowed of categoryWhitelist) {
@@ -46,15 +51,19 @@ async function scrapeMixMods() {
                     }
                 });
 
+                // Stage 2: If categories didn't match, check the title as a fallback.
                 if (!isWhitelisted) {
-                    console.log(`[SKIPPED] ${$article.find('h2.entry-title a').text().trim()} - Reason: Not a 3D Universe mod.`);
+                    if (rawTitle.startsWith('[SA]') || rawTitle.startsWith('[VC]') || rawTitle.startsWith('[III]')) {
+                        isWhitelisted = true;
+                    }
+                }
+
+                if (!isWhitelisted) {
+                    console.log(`[SKIPPED] ${rawTitle} - Reason: Not a 3D Universe mod.`);
                     continue;
                 }
 
-                const titleElement = $article.find('h2.entry-title a');
-                const rawTitle = titleElement.text().trim();
                 const modPageUrl = titleElement.attr('href');
-
                 if (!modPageUrl || processedUrls.has(modPageUrl)) continue;
                 processedUrls.add(modPageUrl);
 
