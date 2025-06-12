@@ -11,9 +11,7 @@ const headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
 };
 
-const categoryBlacklist = new Set([
-    '/iv/', '/v/', '/rdr2/', '/cyberpunk-2077/', '/mafia/', '/outros/', '/novidades/'
-]);
+const categoryWhitelist = new Set(['/sa/', '/vc/', '/iii/']);
 
 async function scrapeMixMods() {
     console.log('Starting scraper...');
@@ -37,18 +35,21 @@ async function scrapeMixMods() {
             for (const article of articles) {
                 const $article = $(article);
                 
-                let isBlacklisted = false;
+                let isWhitelisted = false;
                 $article.find('span.cat-links a').each((_, link) => {
                     const href = $(link).attr('href');
-                    for (const blocked of categoryBlacklist) {
-                        if (href.includes(blocked)) {
-                            isBlacklisted = true;
+                    for (const allowed of categoryWhitelist) {
+                        if (href.includes(allowed)) {
+                            isWhitelisted = true;
                             return false;
                         }
                     }
                 });
 
-                if (isBlacklisted) continue;
+                if (!isWhitelisted) {
+                    console.log(`[SKIPPED] ${$article.find('h2.entry-title a').text().trim()} - Reason: Not a 3D Universe mod.`);
+                    continue;
+                }
 
                 const titleElement = $article.find('h2.entry-title a');
                 const rawTitle = titleElement.text().trim();
