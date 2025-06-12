@@ -20,19 +20,6 @@ function getModSlug(modPageUrl) {
     }
 }
 
-// Helper function to fix all paths for deployment
-function fixPaths($, basePath) {
-    // --- FIX: Correctly point to the CSS and JS files inside the docs folder ---
-    $('link[rel="stylesheet"]').attr('href', `${basePath}/css/styles.css`);
-    $('script[src]').attr('src', `${basePath}/js/script.js`);
-
-    // Fix navigation and brand links
-    $('a[href="/"]').attr('href', `${basePath}/`);
-    $('a[href^="/news"]').attr('href', `${basePath}/`);
-    $('a[href^="/changes"]').attr('href', `${basePath}/`);
-    $('a[href^="/support"]').attr('href', `${basePath}/`);
-}
-
 // Helper function to update the header button
 function updateHeaderButton($) {
     const buyButton = $('header .header-navigation a[href*="store.steampowered.com"]');
@@ -45,21 +32,16 @@ function updateHeaderButton($) {
 async function buildSite() {
     console.log(`Starting build process. Base path is set to: '${basePath}'`);
 
+    // 1. Clean and prepare the output directory (no css/js folders needed)
     await fs.rm(DOCS_PATH, { recursive: true, force: true });
     await fs.mkdir(DOCS_PATH, { recursive: true });
     await fs.mkdir(path.join(DOCS_PATH, 'mods'), { recursive: true });
     await fs.mkdir(path.join(DOCS_PATH, 'page'), { recursive: true });
 
-    // --- FIX: Copy the contents of src/css and src/js directly into docs/css and docs/js ---
-    try {
-        await fs.cp(path.join(SRC_PATH, 'css'), path.join(DOCS_PATH, 'css'), { recursive: true });
-        await fs.cp(path.join(SRC_PATH, 'js'), path.join(DOCS_PATH, 'js'), { recursive: true });
-        console.log('Copied static assets correctly.');
-    } catch (error) {
-        console.error("Error copying static assets. Ensure 'src/css/styles.css' and 'src/js/script.js' exist.", error);
-        process.exit(1);
-    }
-
+    // 2. Load all assets and data into memory
+    console.log('Loading assets and data...');
+    const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'styles.css'), 'utf-8');
+    const jsContent = await fs.readFile(path.join(SRC_PATH, 'js', 'script.js'), 'utf-8');
     const data = JSON.parse(await fs.readFile('data.json', 'utf-8'));
     const featured = JSON.parse(await fs.readFile('featured.json', 'utf-8'));
     const listTemplate = await fs.readFile(path.join(SRC_PATH, 'templates', 'list_template.html'), 'utf-8');
@@ -75,11 +57,25 @@ async function buildSite() {
         return new Date(b.uploadDate) - new Date(a.uploadDate);
     });
 
+    // --- Function to inject assets and fix links ---
+    const processPage = ($, templateHtml) => {
+        // Inject CSS
+        $('link[rel="stylesheet"]').replaceWith(`<style>${cssContent}</style>`);
+        // Inject JS
+        $('script[src]').replaceWith(`<script>${jsContent}</script>`);
+        // Fix navigation links
+        $('a[href="/"]').attr('href', `${basePath}/`);
+        $('a[href^="/news"]').attr('href', `${basePath}/`);
+        $('a[href^="/changes"]').attr('href', `${basePath}/`);
+        $('a[href^="/support"]').attr('href', `${basePath}/`);
+        // Update header button
+        updateHeaderButton($);
+    };
+
     // --- Generate Mod Detail Pages ---
     for (const mod of data) {
         const $ = cheerio.load(modTemplate);
-        fixPaths($, basePath);
-        updateHeaderButton($);
+        processPage($);
 
         $('title').text(`${mod.title} - MixMods Browser`);
         $('.blog-hero-image').css('background-image', `url(${mod.thumbnailUrl})`);
@@ -98,8 +94,7 @@ async function buildSite() {
     const totalPages = Math.ceil(data.length / MODS_PER_PAGE);
     for (let i = 1; i <= totalPages; i++) {
         const $ = cheerio.load(listTemplate);
-        fixPaths($, basePath);
-        updateHeaderButton($);
+        processPage($);
 
         $('body').append(`<script id="mod-data" type="application/json">${JSON.stringify(data)}</script>`);
         $('body').append(`<script id="featured-data" type="application/json">${JSON.stringify(featured)}</script>`);
