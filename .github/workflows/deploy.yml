@@ -8,14 +8,12 @@ permissions:
   pages: write
   id-token: write
 
-# Add this new section to specify the deployment environment
 concurrency:
   group: "pages"
   cancel-in-progress: true
 
 jobs:
   build-and-deploy:
-    # Add the environment configuration here
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -25,10 +23,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # --- NEW DEBUGGING STEP ---
+      # This will list all files and folders to show us the exact structure.
+      - name: Debug File Structure
+        run: ls -R
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          # Update Node.js version to 20 to resolve the warning
           node-version: '20'
           cache: 'npm'
 
