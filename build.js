@@ -7,7 +7,6 @@ const DOCS_PATH = path.join(__dirname, 'docs');
 const SRC_PATH = path.join(__dirname, 'src');
 
 // --- Helper Functions ---
-
 function getModSlug(modPageUrl) {
     try {
         const url = new URL(modPageUrl);
@@ -18,50 +17,22 @@ function getModSlug(modPageUrl) {
     }
 }
 
+// This function remains the same
 function createChangelogHTML($, changelogData) {
-    const iconMap = {
-        'Features': 'add_circle',
-        'Improvements': 'arrow_circle_up',
-        'Fixed': 'handyman',
-        'Removed': 'remove_circle'
-    };
-    const classMap = {
-        'Features': 'features',
-        'Improvements': 'improvements',
-        'Fixed': 'fixed',
-        'Removed': 'removed'
-    };
-
+    const iconMap = { 'Features': 'add_circle', 'Improvements': 'arrow_circle_up', 'Fixed': 'handyman', 'Removed': 'remove_circle' };
+    const classMap = { 'Features': 'features', 'Improvements': 'improvements', 'Fixed': 'fixed', 'Removed': 'removed' };
     let changelogHtml = '';
     for (const header in changelogData) {
         const items = changelogData[header];
         const icon = iconMap[header] || 'info';
         const className = classMap[header] || 'features';
-
-        const listItems = items.map(item => `
-            <li>
-                <span>•</span>
-                <div class="entry">${item}</div>
-            </li>
-        `).join('');
-
-        changelogHtml += `
-            <div class="changes-row ${className}">
-                <div class="changes-row-header">
-                    <span class="icon"><i>${icon}</i></span>
-                    <h3>${header}</h3>
-                </div>
-                <div class="changes-row-body">
-                    <ul>${listItems}</ul>
-                </div>
-            </div>
-        `;
+        const listItems = items.map(item => `<li><span>•</span><div class="entry">${item}</div></li>`).join('');
+        changelogHtml += `<div class="changes-row ${className}"><div class="changes-row-header"><span class="icon"><i>${icon}</i></span><h3>${header}</h3></div><div class="changes-row-body"><ul>${listItems}</ul></div></div>`;
     }
     return changelogHtml;
 }
 
 // --- Main Build Logic ---
-
 async function buildSite() {
     console.log('Starting build process...');
 
@@ -70,8 +41,10 @@ async function buildSite() {
     await fs.mkdir(path.join(DOCS_PATH, 'mods'), { recursive: true });
     await fs.mkdir(path.join(DOCS_PATH, 'page'), { recursive: true });
 
-    await fs.cp(path.join(SRC_PATH, 'css'), path.join(DOCS_PATH, 'css'), { recursive: true });
-    await fs.cp(path.join(SRC_PATH, 'js'), path.join(DOCS_PATH, 'js'), { recursive: true });
+    // --- FIX: Ensure the correct CSS and JS filenames are used ---
+    // We will copy 'styles.css' and 'script.js' from src, as those are more likely user-created names.
+    await fs.cp(path.join(SRC_PATH, 'css', 'styles.css'), path.join(DOCS_PATH, 'css', 'styles.css'));
+    await fs.cp(path.join(SRC_PATH, 'js', 'script.js'), path.join(DOCS_PATH, 'js', 'script.js'));
     console.log('Copied static assets.');
 
     const data = JSON.parse(await fs.readFile('data.json', 'utf-8'));
@@ -94,15 +67,12 @@ async function buildSite() {
     for (const mod of data) {
         const $ = cheerio.load(modTemplate);
         const slug = getModSlug(mod.modPageUrl);
-        
         const relativePrefix = '../';
-        // --- FIX: Corrected $_$ to $ ---
-        $('link[href^="/"]').each((_, el) => $(el).attr('href', `${relativePrefix}${$(el).attr('href').substring(1)}`));
-        $('script[src^="/"]').each((_, el) => $(el).attr('src', `${relativePrefix}${$(el).attr('src').substring(1)}`));
-        $('a[href="/"]').attr('href', `${relativePrefix}index.html`);
-        $('a[href^="/news"]').attr('href', `${relativePrefix}index.html`);
-        $('a[href^="/changes"]').attr('href', `${relativePrefix}index.html`);
-        $('a[href^="/support"]').attr('href', `${relativePrefix}index.html`);
+
+        // --- FIX: Robust path rewriting for all assets and links ---
+        $('link[rel="stylesheet"]').attr('href', `${relativePrefix}css/styles.css`);
+        $('script[src]').attr('src', `${relativePrefix}js/script.js`);
+        $('a[href="/"], a[href^="/news"], a[href^="/changes"], a[href^="/support"]').attr('href', `${relativePrefix}index.html`);
 
         $('title').text(`${mod.title} - MixMods Browser`);
         $('.blog-hero-image').css('background-image', `url(${mod.thumbnailUrl})`);
@@ -113,10 +83,7 @@ async function buildSite() {
 
         const contentDiv = $('.news-section-block .content');
         contentDiv.empty().append(`<p>${mod.description}</p>`);
-        
-        const downloadButtons = mod.downloadLinks.map(link => 
-            `<a href="${link.url}" class="button is-primary is-large" target="_blank" rel="noopener noreferrer">${link.displayText}</a>`
-        ).join(' ');
+        const downloadButtons = mod.downloadLinks.map(link => `<a href="${link.url}" class="button is-primary is-large" target="_blank" rel="noopener noreferrer">${link.displayText}</a>`).join(' ');
         contentDiv.append(`<div class="hero-buttons" style="justify-content: flex-start; margin-top: 2rem;">${downloadButtons}</div>`);
 
         if (changelogs[mod.modPageUrl]) {
@@ -129,8 +96,7 @@ async function buildSite() {
             $('.change-blog-container').remove();
         }
         
-        $('.likes').remove();
-        $('.news-section-block .section-header').remove();
+        $('.likes, .news-section-block .section-header').remove();
         $('.change-blog-container').not(':first').remove();
 
         await fs.writeFile(path.join(DOCS_PATH, 'mods', `${slug}.html`), $.html());
@@ -142,15 +108,12 @@ async function buildSite() {
     for (let i = 1; i <= totalPages; i++) {
         const $ = cheerio.load(listTemplate);
         const isRootPage = (i === 1);
-        const relativePrefix = isRootPage ? './' : '../';
+        const relativePrefix = isRootPage ? '' : '../';
 
-        // --- FIX: Corrected $_$ to $ ---
-        $('link[href^="/"]').each((_, el) => $(el).attr('href', `${relativePrefix}${$(el).attr('href').substring(1)}`));
-        $('script[src^="/"]').each((_, el) => $(el).attr('src', `${relativePrefix}${$(el).attr('src').substring(1)}`));
-        $('a[href="/"]').attr('href', `${relativePrefix}index.html`);
-        $('a[href^="/news"]').attr('href', `${relativePrefix}index.html`);
-        $('a[href^="/changes"]').attr('href', `${relativePrefix}index.html`);
-        $('a[href^="/support"]').attr('href', `${relativePrefix}index.html`);
+        // --- FIX: Robust path rewriting for all assets and links ---
+        $('link[rel="stylesheet"]').attr('href', `${relativePrefix}css/styles.css`);
+        $('script[src]').attr('src', `${relativePrefix}js/script.js`);
+        $('a[href="/"], a[href^="/news"], a[href^="/changes"], a[href^="/support"]').attr('href', `${relativePrefix}index.html`);
 
         const buyButton = $('header .header-navigation a[href*="store.steampowered.com"]');
         buyButton.attr('href', 'https://www.mixmods.com.br/').attr('target', '_blank');
@@ -171,32 +134,13 @@ async function buildSite() {
 
         const postContainer = $('.blog-posts-container');
         postContainer.empty();
-
         const pageMods = data.slice((i - 1) * MODS_PER_PAGE, i * MODS_PER_PAGE);
 
         for (const mod of pageMods) {
             const post = cheerio.load('<div class="blog-post"></div>')('.blog-post');
             const slug = getModSlug(mod.modPageUrl);
             const modPagePath = `${relativePrefix}mods/${slug}.html`;
-
-            post.html(`
-                <a href="${modPagePath}" class="blog-post-image">
-                    <img src="${mod.thumbnailUrl}" alt="Blog Header Image">
-                    <div class="dev-tags">
-                        ${featuredSet.has(mod.modPageUrl) ? '<img src="https://community.fastly.steamstatic.com/public/images/sharedfiles/Workshop_FeatureTag_new.png" alt="Featured" style="position: absolute; top: -5px; left: -5px; width: 64px; height: 64px; z-index: 10;">' : ''}
-                    </div>
-                </a>
-                <div class="blog-post-body">
-                    <div class="date">
-                        <span class="icon"><i>schedule</i></span>
-                        <span>${new Date(mod.uploadDate).toDateString()}</span>
-                    </div>
-                    <a href="${modPagePath}">
-                        <h1 class="title is-size-4">${mod.title}</h1>
-                    </a>
-                    <p class="subtitle is-size-6">${mod.description}</p>
-                </div>
-            `);
+            post.html(`<a href="${modPagePath}" class="blog-post-image"><img src="${mod.thumbnailUrl}" alt="Blog Header Image"><div class="dev-tags">${featuredSet.has(mod.modPageUrl) ? '<img src="https://community.fastly.steamstatic.com/public/images/sharedfiles/Workshop_FeatureTag_new.png" alt="Featured" style="position: absolute; top: -5px; left: -5px; width: 64px; height: 64px; z-index: 10;">' : ''}</div></a><div class="blog-post-body"><div class="date"><span class="icon"><i>schedule</i></span><span>${new Date(mod.uploadDate).toDateString()}</span></div><a href="${modPagePath}"><h1 class="title is-size-4">${mod.title}</h1></a><p class="subtitle is-size-6">${mod.description}</p></div>`);
             postContainer.append(post);
         }
 
@@ -210,7 +154,6 @@ async function buildSite() {
         
         const prevHref = i > 1 ? (i === 2 ? `${relativePrefix}index.html` : `${relativePrefix}page/${i - 1}.html`) : null;
         const nextHref = i < totalPages ? `${relativePrefix}page/${i + 1}.html` : null;
-        
         $('.pagination-previous').attr('href', prevHref).prop('disabled', !prevHref);
         $('.pagination-next').attr('href', nextHref).prop('disabled', !nextHref);
 
