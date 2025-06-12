@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
+        # --- THE FIX: This now checks out to the correct root directory ---
         uses: actions/checkout@v4
 
       - name: Set up Node.js
