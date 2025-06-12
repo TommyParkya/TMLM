@@ -16,10 +16,10 @@ const downloadIconMap = {
     'patreon.com': 'https://c5.patreon.com/external/favicon/rebrand/favicon.ico?v=af5597c2ef'
 };
 
-const gameIconMap = {
-    '[SA]': 'assets/gta_sa.png',
-    '[VC]': 'assets/gta_vc.png',
-    '[III]': 'assets/gta_3.png'
+const gameInfoMap = {
+    '[SA]': { name: 'Grand Theft Auto: San Andreas', icon: 'assets/gta_sa.png' },
+    '[VC]': { name: 'Grand Theft Auto: Vice City', icon: 'assets/gta_vc.png' },
+    '[III]': { name: 'Grand Theft Auto: III', icon: 'assets/gta_3.png' }
 };
 
 function getModSlug(modPageUrl) {
@@ -27,12 +27,15 @@ function getModSlug(modPageUrl) {
     catch (e) { return 'mod-' + Math.random().toString(36).substring(2, 9); }
 }
 
-function updateHeaderButton($) {
-    const buyButton = $('header .header-navigation a[href*="store.steampowered.com"]');
+function updateHeaderButton($, assetPrefix = '') {
+    const buyButton = $('header .header-navigation a');
     buyButton.attr('href', 'https://www.mixmods.com.br/').attr('target', '_blank');
     buyButton.find('span').text('Visit MixMods');
-    // FIX: Use a CSS filter to force the logo to blue
-    buyButton.find('svg').replaceWith('<img src="assets/logo.svg" alt="MixMods Logo" style="height: 26px; width: 26px; filter: invert(39%) sepia(98%) saturate(2544%) hue-rotate(195deg) brightness(103%) contrast(101%);">');
+    buyButton.find('svg').replaceWith(`<img src="${assetPrefix}assets/logo.svg" alt="MixMods Logo" style="height: 26px; width: 26px; filter: invert(39%) sepia(98%) saturate(2544%) hue-rotate(195deg) brightness(103%) contrast(101%);">`);
+}
+
+function formatDate(dateString) {
+    return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
 }
 
 async function buildSite() {
@@ -55,44 +58,31 @@ async function buildSite() {
     const featuredSet = new Set(featured);
     data.sort((a, b) => new Date(b.uploadDate) - new Date(a.uploadDate));
 
-    const processPage = ($, isModPage = false) => {
-        const assetPrefix = isModPage ? '../' : '';
+    const processPage = ($, assetPrefix = '') => {
         $('link[rel="stylesheet"]').replaceWith(`<style>${cssContent}</style>`);
         $('script[src]').replaceWith(`<script>${jsContent}</script>`);
-        
         $('a[href="/"]').attr('href', `${assetPrefix}index.html`);
-        $('a[href^="/news"]').attr('href', `${assetPrefix}index.html`);
-        
-        updateHeaderButton($);
-        $('footer').remove(); // Remove footer
-        $('img[src*="facepunch.com"]').each((_, el) => {
-            const $el = $(el);
-            const src = $el.attr('src');
-            const fileName = src.split('/').pop();
-            $el.attr('src', `${assetPrefix}assets/${fileName}`);
-        });
+        updateHeaderButton($, assetPrefix);
     };
 
     for (const mod of data) {
         const $ = cheerio.load(modTemplate);
-        processPage($, true);
+        processPage($, '../');
 
         $('title').text(`${mod.title} - MixMods Browser`);
         $('.blog-hero-image').css('background-image', `url(${mod.thumbnailUrl})`);
         $('.blog-hero-body h1').text(mod.title);
         $('.blog-hero-body p').text(mod.description);
-        $('.tags .tag.secondary').html(`<span class="icon"><i>schedule</i></span> ${new Date(mod.uploadDate).toLocaleDateString()}`);
-        $('.tags a.tag').remove(); // Remove the "update" tag
+        $('.tags .tag.secondary').html(`<span class="icon"><i>schedule</i></span> ${formatDate(mod.uploadDate)}`);
 
         const gameTag = mod.title.match(/^\[(SA|VC|III)\]/);
-        const gameIcon = gameTag ? gameIconMap[gameTag[0]] : 'assets/gta_default.png';
-        const gameName = gameTag ? `GTA ${gameTag[1]}` : 'Unknown Game';
+        const gameInfo = gameTag ? gameInfoMap[gameTag[0]] : { name: 'Unknown Game', icon: 'assets/gta_default.png' };
         
         $('.author').html(`
             <div class="card user-card">
-                <div class="image"><img src="../${gameIcon}"></div>
+                <div class="image"><img src="../${gameInfo.icon}"></div>
                 <div class="body">
-                    <div class="title has-text-white">${gameName}</div>
+                    <div class="title has-text-white">${gameInfo.name}</div>
                     <div class="position">${mod.platform}</div>
                 </div>
             </div>
@@ -115,15 +105,14 @@ async function buildSite() {
     const totalPages = Math.ceil(data.length / MODS_PER_PAGE);
     for (let i = 1; i <= totalPages; i++) {
         const $ = cheerio.load(listTemplate);
-        processPage($);
+        const assetPrefix = (i === 1) ? '' : '../';
+        processPage($, assetPrefix);
 
         $('body').append(`<script id="mod-data" type="application/json">${JSON.stringify(data)}</script>`);
         $('body').append(`<script id="featured-data" type="application/json">${JSON.stringify(featured)}</script>`);
 
-        const postContainer = $('.blog-posts-container').empty();
-        // The main featured post is now static HTML, so we only populate the list
-        
-        await fs.writeFile(path.join(DOCS_PATH, i === 1 ? 'index.html' : `page/${i}.html`), $.html());
+        const pagePath = (i === 1) ? 'index.html' : `page/${i}.html`;
+        await fs.writeFile(path.join(DOCS_PATH, pagePath), $.html());
         if (i === 1) {
              await fs.writeFile(path.join(DOCS_PATH, 'page', '1.html'), $.html());
         }
