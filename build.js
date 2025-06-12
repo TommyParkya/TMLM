@@ -14,7 +14,7 @@ async function buildSite() {
         await fs.cp(path.join(SRC_PATH, 'assets'), path.join(PUBLIC_PATH, 'assets'), { recursive: true });
         console.log('Copied static assets.');
     } catch (error) {
-        console.error("Warning: 'src/assets' folder not found. Site will build without images.", error.message);
+        console.log("Warning: 'src/assets' folder not found or is empty. Site will build without images.");
     }
 
     console.log('Loading data and assets into memory...');
@@ -24,7 +24,7 @@ async function buildSite() {
     const manualData = JSON.parse(await fs.readFile('manual_data.json', 'utf-8'));
     console.log('All data loaded.');
 
-    const htmlContent = `
+    const htmlShell = `
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 <head>
@@ -42,7 +42,7 @@ async function buildSite() {
         <div class="container">
             <a href="#" class="logo">MixMods Browser</a>
             <div class="header-actions">
-                <div id="theme-switch" class="theme-switch" aria-label="Toggle dark mode">
+                <div id="theme-switch" class="theme-switch" aria-label="Toggle dark mode" role="button">
                     <div class="theme-switch-track">
                         <div class="theme-switch-thumb"></div>
                     </div>
@@ -77,7 +77,7 @@ async function buildSite() {
     </main>
 
     <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true">
-        <div id="modal-content" class="modal-content"></div>
+        <div id="modal-content" class="modal-content" role="document"></div>
     </div>
 
     <script id="mod-data" type="application/json">${JSON.stringify(modData)}</script>
@@ -88,7 +88,7 @@ async function buildSite() {
 </html>
     `;
 
-    await fs.writeFile(path.join(PUBLIC_PATH, 'index.html'), htmlContent);
+    await fs.writeFile(path.join(PUBLIC_PATH, 'index.html'), htmlShell);
     console.log('Build complete. Generated public/index.html.');
 }
 
