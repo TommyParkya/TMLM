@@ -1,0 +1,16 @@
+{
+  "featured": [
+    "https://www.mixmods.com.br/2024/01/sa-essentials-pack/"
+  ],
+  "changelogs": {
+    "https://www.mixmods.com.br/2024/01/sa-essentials-pack/": {
+      "Features": [
+        "Includes ModLoader for easy mod management.",
+        "Adds widescreen fix and proper controller support."
+      ],
+      "Fixes": [
+        "Resolves common game crashes on modern systems."
+      ]
+    }
+  }
+}
