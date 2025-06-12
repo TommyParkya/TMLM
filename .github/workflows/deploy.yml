@@ -37,10 +37,7 @@ jobs:
       - name: Run build script
         run: node build.js
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
+      - name: Upload artifact for deployment
         uses: actions/upload-pages-artifact@v3
         with:
           path: './public'
