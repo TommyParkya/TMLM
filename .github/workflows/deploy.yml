@@ -1,17 +1,53 @@
-name: DEBUG - Show File Structure
+name: Build and Deploy MixMods Browser
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
-  debug-the-runner:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     runs-on: ubuntu-latest
     steps:
-      - name: Step 1 - Checkout the code
+      - name: Checkout repository
+        # This is the standard, correct way to check out code.
+        # It places your files in the root of the workspace.
         uses: actions/checkout@v4
 
-      - name: Step 2 - Show the current directory path
-        run: pwd
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: Step 3 - List every single file and folder
-        run: ls -R
+      - name: Install dependencies
+        # This will now find package.json in the root.
+        run: npm install
+
+      - name: Run scraper
+        # This will now run from the correct directory.
+        run: node scraper.js
+
+      - name: Run build script
+        # This will now find all src files and data.json.
+        run: node build.js
+
+      - name: Upload artifact for deployment
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # This correctly points to the 'public' folder created by build.js.
+          path: ./public
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
