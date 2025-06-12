@@ -21,8 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        # This is the standard, correct way to check out code.
-        # It places your files in the root of the workspace.
+        # This is the standard, correct way. It places your files in the root.
         uses: actions/checkout@v4
 
       - name: Set up Node.js
