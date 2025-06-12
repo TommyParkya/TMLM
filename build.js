@@ -95,10 +95,10 @@ async function buildSite() {
         const $ = cheerio.load(modTemplate);
         const slug = getModSlug(mod.modPageUrl);
         
-        // --- FIX: Use relative paths for assets from a 'mods/' subdirectory ---
         const relativePrefix = '../';
-        $('link[href^="/"]').each((_, el) => $(el).attr('href', `${relativePrefix}${$_$(el).attr('href').substring(1)}`));
-        $('script[src^="/"]').each((_, el) => $(el).attr('src', `${relativePrefix}${$_$(el).attr('src').substring(1)}`));
+        // --- FIX: Corrected $_$ to $ ---
+        $('link[href^="/"]').each((_, el) => $(el).attr('href', `${relativePrefix}${$(el).attr('href').substring(1)}`));
+        $('script[src^="/"]').each((_, el) => $(el).attr('src', `${relativePrefix}${$(el).attr('src').substring(1)}`));
         $('a[href="/"]').attr('href', `${relativePrefix}index.html`);
         $('a[href^="/news"]').attr('href', `${relativePrefix}index.html`);
         $('a[href^="/changes"]').attr('href', `${relativePrefix}index.html`);
@@ -144,9 +144,9 @@ async function buildSite() {
         const isRootPage = (i === 1);
         const relativePrefix = isRootPage ? './' : '../';
 
-        // --- FIX: Use relative paths for assets based on page depth ---
-        $('link[href^="/"]').each((_, el) => $(el).attr('href', `${relativePrefix}${$_$(el).attr('href').substring(1)}`));
-        $('script[src^="/"]').each((_, el) => $(el).attr('src', `${relativePrefix}${$_$(el).attr('src').substring(1)}`));
+        // --- FIX: Corrected $_$ to $ ---
+        $('link[href^="/"]').each((_, el) => $(el).attr('href', `${relativePrefix}${$(el).attr('href').substring(1)}`));
+        $('script[src^="/"]').each((_, el) => $(el).attr('src', `${relativePrefix}${$(el).attr('src').substring(1)}`));
         $('a[href="/"]').attr('href', `${relativePrefix}index.html`);
         $('a[href^="/news"]').attr('href', `${relativePrefix}index.html`);
         $('a[href^="/changes"]').attr('href', `${relativePrefix}index.html`);
