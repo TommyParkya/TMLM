@@ -32,7 +32,7 @@ function updateHeaderButton($) {
 async function buildSite() {
     console.log(`Starting build process. Base path is set to: '${basePath}'`);
 
-    // 1. Clean and prepare the output directory (no css/js folders needed)
+    // 1. Clean and prepare the output directory
     await fs.rm(DOCS_PATH, { recursive: true, force: true });
     await fs.mkdir(DOCS_PATH, { recursive: true });
     await fs.mkdir(path.join(DOCS_PATH, 'mods'), { recursive: true });
@@ -40,7 +40,8 @@ async function buildSite() {
 
     // 2. Load all assets and data into memory
     console.log('Loading assets and data...');
-    const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'styles.css'), 'utf-8');
+    // --- THE FIX: Use the correct filename 'style.css' ---
+    const cssContent = await fs.readFile(path.join(SRC_PATH, 'css', 'style.css'), 'utf-8');
     const jsContent = await fs.readFile(path.join(SRC_PATH, 'js', 'script.js'), 'utf-8');
     const data = JSON.parse(await fs.readFile('data.json', 'utf-8'));
     const featured = JSON.parse(await fs.readFile('featured.json', 'utf-8'));
