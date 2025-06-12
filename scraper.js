@@ -34,33 +34,27 @@ async function scrapeMixMods() {
 
             for (const article of articles) {
                 const $article = $(article);
-                const titleElement = $article.find('h2.entry-title a');
-                const rawTitle = titleElement.text().trim();
                 
                 let isWhitelisted = false;
-                let gameTagFromCategory = null;
-
                 $article.find('span.cat-links a').each((_, link) => {
                     const href = $(link).attr('href');
                     for (const allowed of categoryWhitelist) {
                         if (href.includes(allowed)) {
                             isWhitelisted = true;
-                            gameTagFromCategory = allowed.replace(/\//g, '').toUpperCase();
                             return false;
                         }
                     }
                 });
 
-                if (!isWhitelisted && (rawTitle.includes('SA') || rawTitle.includes('VC') || rawTitle.includes('III'))) {
-                    isWhitelisted = true;
-                }
-
                 if (!isWhitelisted) {
-                    console.log(`[SKIPPED] ${rawTitle} - Reason: Not a 3D Universe mod.`);
+                    console.log(`[SKIPPED] ${$article.find('h2.entry-title a').text().trim()} - Reason: Not a 3D Universe mod.`);
                     continue;
                 }
 
+                const titleElement = $article.find('h2.entry-title a');
+                const rawTitle = titleElement.text().trim();
                 const modPageUrl = titleElement.attr('href');
+
                 if (!modPageUrl || processedUrls.has(modPageUrl)) continue;
                 processedUrls.add(modPageUrl);
 
@@ -70,7 +64,9 @@ async function scrapeMixMods() {
                 try {
                     const response = await axios.get(modPageUrl, { headers });
                     modPageHtml = response.data;
-                } catch (modPageError) { continue; }
+                } catch (modPageError) {
+                    continue;
+                }
 
                 const $$ = cheerio.load(modPageHtml);
                 const downloadElements = $$('a.download_bt1, a:has(.download_bt1), a:has(img[src*="download-baixar"])');
@@ -85,7 +81,7 @@ async function scrapeMixMods() {
                 if (downloadLinks.length === 0) continue;
 
                 const description = $$('div.entry-content > p').first().text().trim();
-                const thumbnailUrl = $$('div.entry-content img').first().attr('src') || $article.find('div.post-image a img').attr('src') || 'assets/placeholder.png';
+                const thumbnailUrl = $$('div.entry-content img').first().attr('src') || $article.find('div.post-image a img').attr('src');
                 
                 let gameTag = '';
                 let platform = 'PC';
@@ -93,30 +89,39 @@ async function scrapeMixMods() {
 
                 if (lowerTitle.includes('mobile') || lowerTitle.includes('android')) platform = 'Mobile';
                 else if (lowerTitle.includes('ps2')) platform = 'PS2';
-                else if (rawTitle.includes('SA:DE') || lowerTitle.includes('definitive edition')) platform = 'DE';
+                else if (lowerTitle.includes('definitive edition') || (lowerTitle.includes(' de ') && !lowerTitle.includes(' de '))) platform = 'DE';
 
-                if (gameTagFromCategory) {
-                    gameTag = `[${gameTagFromCategory}]`;
-                } else if (rawTitle.startsWith('[SA]')) gameTag = '[SA]';
-                else if (rawTitle.startsWith('[VC]')) gameTag = '[VC]';
-                else if (rawTitle.startsWith('[III]')) gameTag = '[III]';
-                else if (rawTitle.startsWith('[SA/SA:DE]')) {
-                    gameTag = '[SA]';
-                    platform = 'DE';
+                $article.find('span.cat-links a').each((_, link) => {
+                    const href = $(link).attr('href');
+                    if (href.includes('/sa/')) { gameTag = '[SA]'; return false; }
+                    if (href.includes('/vice-city/')) { gameTag = '[VC]'; return false; }
+                    if (href.includes('/iii/')) { gameTag = '[III]'; return false; }
+                });
+
+                if (!gameTag) {
+                    if (lowerTitle.includes('san andreas')) gameTag = '[SA]';
+                    else if (lowerTitle.includes('vice city')) gameTag = '[VC]';
+                    else if (lowerTitle.includes('gta 3') || lowerTitle.includes('gta iii')) gameTag = '[III]';
                 }
 
-                const finalTitle = gameTag ? `${gameTag} ${rawTitle.replace(gameTag, '').trim()}` : rawTitle;
+                const finalTitle = gameTag ? `${gameTag} ${rawTitle}` : rawTitle;
                 allMods.push({ title: finalTitle, platform, modPageUrl, thumbnailUrl, description, uploadDate: new Date(uploadDate).toISOString(), downloadLinks });
                 console.log(`[ADDED] ${finalTitle}`);
             }
         } catch (error) {
-            console.error(`FATAL ERROR: Could not fetch page ${i}.`);
+            console.error(`FATAL ERROR: Could not fetch page ${i}. The website may be blocking requests.`);
+            console.error('Error details:', error.message);
             process.exit(1);
         }
     }
 
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allMods, null, 2));
-    console.log(`\nScraping complete. Found ${allMods.length} mods.`);
+    if (allMods.length > 0) {
+        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(allMods, null, 2));
+        console.log(`\nScraping complete. Found ${allMods.length} mods. Data saved to ${OUTPUT_FILE}.`);
+    } else {
+        console.log('\nScraping finished, but no mods were collected. data.json was not created.');
+        process.exit(1);
+    }
 }
 
 scrapeMixMods();
