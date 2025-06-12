@@ -1,17 +1,32 @@
 document.addEventListener('DOMContentLoaded', () => {
     const modsData = JSON.parse(document.getElementById('mod-data')?.textContent || '[]');
     const featuredData = JSON.parse(document.getElementById('featured-data')?.textContent || '[]');
+    const changelogData = JSON.parse(document.getElementById('changelog-data')?.textContent || '{}');
     
     const postContainer = document.querySelector('.blog-posts-container');
     const paginationContainer = document.querySelector('.pagination-container');
     const loader = document.querySelector('.loader-wrapper');
     const filterControlsContainer = document.querySelector('.filter-controls');
     const searchInput = document.querySelector('.search-box input[name="search"]');
+    const lightboxOverlay = document.getElementById('lightbox-overlay');
+    const lightboxContent = document.getElementById('lightbox-content');
 
-    if (!modsData.length || !postContainer || !paginationContainer || !filterControlsContainer) {
+    if (!modsData.length) {
         if(loader) loader.classList.add('hidden');
         return;
     }
+
+    const downloadIconMap = {
+        'sharemods.com': 'https://sharemods.com/favicon.ico',
+        'mediafire.com': 'https://www.mediafire.com/favicon.ico',
+        'drive.google.com': 'https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png',
+        'patreon.com': 'https://c5.patreon.com/external/favicon/rebrand/favicon.ico?v=af5597c2ef'
+    };
+    const gameInfoMap = {
+        '[SA]': { name: 'Grand Theft Auto: San Andreas', icon: 'assets/gta_sa.png' },
+        '[VC]': { name: 'Grand Theft Auto: Vice City', icon: 'assets/gta_vc.png' },
+        '[III]': { name: 'Grand Theft Auto: III', icon: 'assets/gta_3.png' }
+    };
 
     filterControlsContainer.innerHTML = `
         <select id="platform-filter" aria-label="Platform"><option value="all">All Platforms</option><option value="PC">PC</option><option value="Mobile">Mobile</option><option value="DE">Definitive Edition</option><option value="PS2">PS2</option></select>
@@ -31,8 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
         catch (e) { return 'mod-' + Math.random().toString(36).substring(2, 9); }
     }
 
-    function formatDate(dateString) {
-        return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
+    function formatDate(dateString, format = 'long') {
+        if (format === 'long') {
+            return new Intl.DateTimeFormat('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString));
+        }
+        return new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(dateString));
     }
 
     function renderMods(modsToRender) {
@@ -45,20 +63,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const featuredSet = new Set(featuredData);
         const fragment = document.createDocumentFragment();
 
-        modsToRender.forEach(mod => {
-            const modPagePath = `mods/${getModSlug(mod.modPageUrl)}.html`;
+        modsToRender.forEach((mod, index) => {
             const isFeatured = featuredSet.has(mod.modPageUrl);
-
             const post = document.createElement('div');
             post.className = 'blog-post';
+            post.dataset.modIndex = modsData.findIndex(m => m.modPageUrl === mod.modPageUrl);
             post.innerHTML = `
-                <a href="${modPagePath}" class="blog-post-image">
+                <a href="#" class="blog-post-image">
                     <img src="${mod.thumbnailUrl}" alt="Mod Thumbnail" loading="lazy" decoding="async">
                     <div class="dev-tags">${isFeatured ? '<img src="assets/Workshop_FeatureTag_new.png" alt="Featured" style="position: absolute; top: -5px; left: -5px; width: 64px; height: 64px; z-index: 10;">' : ''}</div>
                 </a>
                 <div class="blog-post-body">
                     <div class="date"><span class="icon"><i>schedule</i></span><span>${formatDate(mod.uploadDate)}</span></div>
-                    <a href="${modPagePath}"><h1 class="title is-size-4">${mod.title}</h1></a>
+                    <a href="#"><h1 class="title is-size-4">${mod.title}</h1></a>
                     <p class="subtitle is-size-6">${mod.description}</p>
                 </div>
             `;
@@ -67,29 +84,82 @@ document.addEventListener('DOMContentLoaded', () => {
         postContainer.appendChild(fragment);
     }
 
-    function renderPagination(totalMods, currentFilters) {
+    function renderPagination(totalMods) {
         const totalPages = Math.ceil(totalMods / MODS_PER_PAGE);
         paginationContainer.innerHTML = '';
         if (totalPages <= 1) return;
-
-        const urlParams = new URLSearchParams(currentFilters).toString();
         
         let paginationHTML = `<nav class="pagination" role="navigation" aria-label="pagination">
             <a class="pagination-previous" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}"><i>arrow_left</i></a>
             <a class="pagination-next" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}"><i>arrow_right</i></a>
             <ul class="pagination-list">`;
-
         for (let i = 1; i <= totalPages; i++) {
             paginationHTML += `<li><a class="pagination-link ${i === currentPage ? 'is-current' : ''}" data-page="${i}">${i}</a></li>`;
         }
-
         paginationHTML += `</ul></nav>`;
         paginationContainer.innerHTML = paginationHTML;
     }
 
+    function showLightbox(mod) {
+        const gameTag = mod.title.match(/^\[(SA|VC|III)\]/);
+        const gameInfo = gameTag ? gameInfoMap[gameTag[0]] : { name: 'Unknown Game', icon: 'assets/gta_default.png' };
+        
+        const downloadButtons = mod.downloadLinks.map(link => {
+            const hostname = new URL(link.url).hostname.replace('www.', '');
+            const iconUrl = downloadIconMap[hostname];
+            if (iconUrl) {
+                return `<a href="${link.url}" class="button is-secondary" target="_blank" rel="noopener noreferrer" style="background-color: #fff; padding: 0.5rem 1rem;"><img src="${iconUrl}" style="height: 24px;"></a>`;
+            }
+            return `<a href="${link.url}" class="button is-primary" target="_blank" rel="noopener noreferrer">Download</a>`;
+        }).join(' ');
+
+        const changelogs = changelogData[mod.modPageUrl];
+        let changelogHtml = '';
+        if (changelogs) {
+            for (const header in changelogs) {
+                const items = changelogs[header].map(item => `<li><span>•</span><div class="entry">${item}</div></li>`).join('');
+                changelogHtml += `<div class="changes-row"><div class="changes-row-header"><h3>${header}</h3></div><div class="changes-row-body"><ul>${items}</ul></div></div>`;
+            }
+        }
+
+        lightboxContent.innerHTML = `
+            <div class="blog-hero" style="min-height: auto;">
+                <div class="blog-hero-image" style="background-image:url(${mod.thumbnailUrl}); position: relative; height: 300px; mask-image: linear-gradient(rgba(0,0,0,1) 70%, transparent 100%); -webkit-mask-image: linear-gradient(rgba(0,0,0,1) 70%, transparent 100%);"></div>
+                <div class="blog-hero-body" style="padding: 2rem;">
+                    <div class="container">
+                        <div class="body-info">
+                            <div class="tags" style="display: flex; align-items: center; justify-content: space-between;">
+                                <div class="tag secondary"><span class="icon"><i>schedule</i></span> ${formatDate(mod.uploadDate, 'short')}</div>
+                                <div class="hero-buttons" style="display: flex; gap: 0.5rem;">${downloadButtons}</div>
+                            </div>
+                            <h1>${mod.title}</h1>
+                            <p>${mod.description}</p>
+                            <div class="author">
+                                <div class="card user-card">
+                                    <div class="image"><img src="${gameInfo.icon}"></div>
+                                    <div class="body">
+                                        <div class="title has-text-white">${gameInfo.name}</div>
+                                        <div class="position">${mod.platform}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            ${changelogHtml ? `<div class="change-blog-container" style="background: #1a1a1a; padding: 2rem;"><div class="container">${changelogHtml}</div></div>` : ''}
+        `;
+        lightboxOverlay.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function hideLightbox() {
+        lightboxOverlay.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
     function updateView(preserveScroll = false) {
         const scrollY = window.scrollY;
-
         const currentFilters = {
             search: searchInput.value.toLowerCase(),
             platform: platformFilter.value,
@@ -114,20 +184,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const modsForPage = filteredMods.slice(startIndex, startIndex + MODS_PER_PAGE);
 
         renderMods(modsForPage);
-        renderPagination(filteredMods.length, currentFilters);
+        renderPagination(filteredMods.length);
         
         if (preserveScroll) {
             window.scrollTo(0, scrollY);
-        } else {
-            window.scrollTo(0, 0);
         }
     }
+
+    postContainer.addEventListener('click', e => {
+        e.preventDefault();
+        const post = e.target.closest('.blog-post');
+        if (post && post.dataset.modIndex) {
+            const mod = modsData[parseInt(post.dataset.modIndex)];
+            showLightbox(mod);
+        }
+    });
+
+    lightboxOverlay.addEventListener('click', (e) => {
+        if (e.target === lightboxOverlay) {
+            hideLightbox();
+        }
+    });
 
     paginationContainer.addEventListener('click', e => {
         const target = e.target.closest('a[data-page]');
         if (target && !target.hasAttribute('disabled')) {
             currentPage = parseInt(target.dataset.page);
             updateView();
+            window.scrollTo(0, 0);
         }
     });
 
